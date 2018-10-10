@@ -1,0 +1,15 @@
+{
+  "hosts" : [
+      {
+          "hostname" : "ibm-dp.q@dp-wn02",
+          "ip" : "",
+          "gflops" : 1000,
+          "user" : "cosmin.samoila",
+          "cpus" : 10
+      }
+  ],
+  "scheduling" : "min-min",
+  "rootfs" : "~/adaptiveexecutionengine/t4l",
+  "workspace" : "~/workspace",
+  "propagate_workspace" : "True"
+}

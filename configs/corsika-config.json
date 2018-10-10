@@ -1,0 +1,17 @@
+{
+	"pre-req" : [
+			"scp -q -r ~/facultate/corsika* user@hostname:~"
+		],
+	"tasks" : [
+			{
+				"id" : 1,
+				"priority" : 10,
+				"length" : 50,
+				"command" : "~/run.sh task1",
+				"input" : "/home/gabrielcsmo/facultate/corsika_input/SIM000000.list,/home/gabrielcsmo/facultate/corsika/run/RUN000000.inp,/home/gabrielcsmo/facultate/corsika_input/SIM000000.reas",
+				"output_file" : "~/facultate/corsika_input/SIM1"
+			}
+		],
+	"output_folder" : "~/Adaptive-Parallel-Execution-Engine/output/",
+	"clean_output" : true
+}
