@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 from multiprocessing import Process
+import threading
 
 
 def exec_func(**kwargs):
@@ -31,6 +32,23 @@ def exec_func(**kwargs):
     logging.info(scp_command)
 
 
+class BackgroundThread(object):
+    def __init__(self, command):
+        self.command = format(command.strip())
+        self.thread = threading.Thread(target=self.run, args=())
+        self.thread.daemon = True
+        self.thread.start()
+
+    def run(self):
+        os.system('./{}'.format(self.command))
+
+    def is_finished(self):
+        command = ['ps', '-ux']
+        out = subprocess.check_output(command)
+        if self.command in out:
+            return False
+        return True
+
 class Host():
     def __init__(self, args, prereq):
         self.raw_args = args
@@ -41,6 +59,7 @@ class Host():
         self.used_cpus = 0
         self.processing_power = self.cpus * args['gflops']
         self.user = args['user']
+        self.type = args['type']
         self.running_tasks = {}
         self.load = 0
         self.prereq = prereq
@@ -72,6 +91,33 @@ class Host():
         tokens = out.split(" ")
         task.set_qsub_id(tokens[2])
 
+    def local_exec(self, task):
+        try:
+            """create a script where to write command so we can identify
+            it later with ps - required to see if task finished"""
+            script_name = '_'.join([self.hostname, 'task', task.id]).replace(' ', '')
+
+            """write the full command in the script and make it exec"""
+            full_cmd = ' '.join([task.get_command(), task.get_args()])
+
+
+            os.system('echo -e "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
+                                                                           script_name,
+                                                                           script_name))
+            task.set_background_thread(BackgroundThread(script_name))
+
+        except Exception as e:
+            print "Failed to execute job:", e
+
+    def exec_task(self, task):
+        if self.type == 'local':
+            self.local_exec(task)
+        elif self.type == 'qsub':
+            self.qsub_exec(task)
+        else:
+            print "Unknown host type: {}".format(self.type)
+            sys.exit(1)
+
     def send_task(self, task):
         """
         Keep a log of how many tasks are currently running on each host.
@@ -82,9 +128,12 @@ class Host():
         length = task.get_length()
         self.used_cpus += 1
         self.load += length
-        self.qsub_exec(task)
-        self.running_tasks[task.qsub_id] = task
-        print '\tTask: {0} is running now running\n'.format(task.qsub_id)
+        task.set_type(self.type)
+
+        self.exec_task(task)
+
+        self.running_tasks[task.get_id()] = task
+        print '\tTask: {0} is running now running\n'.format(task.get_id())
 
     def tasks_join(self):
         for task in self.running_tasks:
