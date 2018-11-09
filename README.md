@@ -1,5 +1,6 @@
-#COSMOS - Framework for Combining Simulation and Optimization Software
-COSMOS is a framework that has three main functions:
+COSMOS - Framework for Combining Simulation and Optimization Software
+
+It has three main functions:
 - optimize application input and parameters
 - provide an optimal scheduling policy for all sub-tasks of the application
 - analyze the application results.
