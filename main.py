@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import logging
-from controller.tools4lammps_controller import T4l_controller
+from controller.local_controller import LocalController
 import argparse
 
 logging.basicConfig(filename='engine.log', level=logging.INFO)
@@ -22,7 +22,7 @@ def main():
     oconfig = args.optimizer_config
     commands_file = args.commands_file
 
-    controller = T4l_controller()
+    controller = LocalController()
     controller.parse_config(controller_config=cconfig,
                             optimizer_config=oconfig,
                             broker_config=bconfig)

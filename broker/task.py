@@ -31,6 +31,9 @@ class Task():
         """
         if len(self.task_dependencies) == 0:
             self.ready = True
+        self.background_thread = None
+        # local or qsub
+        self.task_type = None
 
     def to_string(self):
         rstr = ""
@@ -53,6 +56,9 @@ class Task():
             return "rootfs"
         return "task_" + str(self.ws_task_id)
 
+    def get_id(self):
+        return self.id
+
     def get_length(self):
         return self.length
 
@@ -61,6 +67,9 @@ class Task():
 
     def get_command(self):
         return self.command
+
+    def get_args(self):
+        return self.args
 
     def set_qsub_id(self, qid):
         self.qsub_id = qid
@@ -75,6 +84,20 @@ class Task():
         return True
 
     def mark_if_finished(self):
+        if self.task_type == 'local':
+            self.mark_if_finished_local()
+        elif self.task_type == 'qsub':
+            self.mark_if_finished_qsub()
+
+    def mark_if_finished_local(self):
+        if not self.background_thread:
+            print "Background thread not set"
+            return
+        if self.finished:
+            return
+        self.finished = self.background_thread.is_finished()
+
+    def mark_if_finished_qsub(self):
         """ if job doesn't have a qsub id it means the
             job wasn't scheduled yet (i.e. cannot be finished)
         """
@@ -101,6 +124,12 @@ class Task():
         if finished:
             print "Task " + self.qsub_id + " finished."
             self.finished = True
+
+    def set_background_thread(self, thr):
+        self.background_thread = thr
+
+    def set_type(self, t_type):
+        self.task_type = t_type
 
     def is_finished(self):
         return self.finished

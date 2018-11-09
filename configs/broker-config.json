@@ -1,15 +1,16 @@
 {
   "hosts" : [
       {
-          "hostname" : "ibm-dp.q@dp-wn02",
+          "hostname" : "localhost",
           "ip" : "",
           "gflops" : 1000,
-          "user" : "cosmin.samoila",
-          "cpus" : 10
+          "user" : "gabrielcsmo",
+          "cpus" : 4,
+          "type" : "local"
       }
   ],
   "scheduling" : "min-min",
-  "rootfs" : "~/adaptiveexecutionengine/t4l",
+  "rootfs" : "~/repos/COSMOS-Framework/task_examples/pi_computing",
   "workspace" : "~/workspace",
   "propagate_workspace" : "True"
 }

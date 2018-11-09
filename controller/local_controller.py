@@ -3,17 +3,14 @@ import sys
 import os
 import json
 from controller import Controller
-from broker.broker import Broker
-from optimizer.CorsikaOptimizer import CorsikaOptimizer
+from broker.local_broker import LocalBroker
 from optimizer.optimizer import Optimizer
 from broker.task import create_tasks
-from optimizer.Tools4LammpsOptimizer import T4l_optimizer
 
-
-class T4lController(Controller):
+class LocalController(Controller):
     def __init__(self):
-        super(T4lController, self).__init__()
-        print "Tools4Lamps controller created!"
+        super(LocalController, self).__init__()
+        print "Local controller created!"
 
     def parse_commands_file(self, commands_file=None):
         print "Parse controller commands file"
@@ -60,9 +57,8 @@ class T4lController(Controller):
         self.optimizer_config = config_json
 
     def main_loop(self):
-        #optimizer = T4l_optimizer(self.optimizer_config)
         optimizer = Optimizer(self.optimizer_config)
-        broker = Broker(self.broker_config, optimizer)
+        broker = LocalBroker(self.broker_config, optimizer)
         self.print_info()
 
         broker.schedule_tasks(self.tasks)
