@@ -1,0 +1,16 @@
+{
+  "hosts" : [
+      {
+          "hostname" : "localhost",
+          "ip" : "",
+          "gflops" : 10000,
+          "user" : "csamoila",
+          "cpus" : 40,
+          "type" : "local"
+      }
+  ],
+  "scheduling" : "min-min",
+  "rootfs" : "~/corsika_rootfs",
+  "workspace" : "~/workspace",
+  "propagate_workspace" : "True"
+}
