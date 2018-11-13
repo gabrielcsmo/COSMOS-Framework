@@ -52,7 +52,7 @@ class BackgroundThread(object):
 class Host():
     def __init__(self, args, prereq):
         self.raw_args = args
-        print(self.raw_args)
+        logging.info(self.raw_args)
         self.hostname = args['hostname']
         self.ip = args['ip']
         self.cpus = args['cpus']
@@ -74,7 +74,7 @@ class Host():
             if command.startswith("scp"):
                 c = command.replace("user", self.user)
                 c = c.replace("hostname", self.hostname)
-                print(c)
+                logging.info(c)
                 os.system(c)
 
     def qsub_exec(self, task):
@@ -83,9 +83,8 @@ class Host():
             command = ["qsub", "-q", str(self.hostname), "-cwd", task.get_command()]
             out = subprocess.check_output(command)
         except Exception as e:
-            print "Failed to submit job:", e
+            logging.error("Failed to submit job: {}".format(e))
             return None
-        print out
         # Output is like:
         # Your job 994012 ("run.sh") has been submitted
         tokens = out.split(" ")
@@ -107,7 +106,7 @@ class Host():
             task.set_background_thread(BackgroundThread(script_name))
 
         except Exception as e:
-            print "Failed to execute job:", e
+            logging.error("Failed to execute job: {}".format(e))
 
     def exec_task(self, task):
         if self.type == 'local':
@@ -115,7 +114,7 @@ class Host():
         elif self.type == 'qsub':
             self.qsub_exec(task)
         else:
-            print "Unknown host type: {}".format(self.type)
+            logging.error("Unknown host type: {}".format(self.type))
             sys.exit(1)
 
     def send_task(self, task):
@@ -133,7 +132,7 @@ class Host():
         self.exec_task(task)
 
         self.running_tasks[task.get_id()] = task
-        print '\tTask: {0} is running now running\n'.format(task.get_id())
+        logging.info('\tTask: {0} is running now running\n'.format(task.get_id()))
 
     def tasks_join(self):
         for task in self.running_tasks:

@@ -14,7 +14,7 @@ def get_fastest_min_host(hosts, task):
         elif host.get_expected_load(task) < ret_val:
             ret_val = host.get_expected_load(task)
             ret_host = i
-    print("fastest host {0} - {1}".format(ret_val, hosts[ret_host].to_string()))
+    logging.info("fastest host {0} - {1}".format(ret_val, hosts[ret_host].to_string()))
     return ret_host
 
 

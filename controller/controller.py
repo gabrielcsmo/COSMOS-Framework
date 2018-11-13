@@ -2,7 +2,7 @@ import logging
 
 class Controller(object):
     def __init__(self):
-        print "Creating the Controller..."
+        logging.info("Creating the Controller...")
         self.controller_config = None
         self.optimizer_config = None
         self.broker_config = None
@@ -14,10 +14,9 @@ class Controller(object):
         self.parse_optimizer_config(optimizer_config)
 
     def print_info(self):
-        print "\nGeneral Config:\n", self.controller_config
-        print "\nBroker Config:\n", self.broker_config
-        print "\nOptimizer Config:\n", self.optimizer_config
-        #print "\nCommands:\n", self.commands
+        logging.info("\nGeneral Config:\n{}".format(self.controller_config))
+        logging.info("\nBroker Config:\n{}".format(self.broker_config))
+        logging.info("\nOptimizer Config:\n{}".format(self.optimizer_config))
 
     def parse_commands_file(self, commands_file):
         pass

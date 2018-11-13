@@ -12,5 +12,6 @@
   "scheduling" : "min-min",
   "rootfs" : "~/corsika_rootfs",
   "workspace" : "~/workspace",
-  "propagate_workspace" : "True"
+  "propagate_workspace" : "True",
+  "timeout" : 60
 }

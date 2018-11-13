@@ -6,12 +6,13 @@ import subprocess
 from time import sleep
 import os
 import sys
+import logging
 
 signal.signal(signal.SIGINT, signal_handler)
 
 class Broker():
     def __init__(self, config, optimizer):
-        print "Creating Broker Object"
+        logging.info("Creating Broker Object")
         self.config = config
         self.scheduling_method = self.config['scheduling']
         self.hosts_info = self.config['hosts']
@@ -32,23 +33,23 @@ class Broker():
             self.machines.append(Host(hinfo, None))
 
     def print_hosts(self):
-        print "\nHosts:"
+        logging.info("\nHosts:")
         for machine in self.machines:
-            print machine.to_string()
+            logging.info(machine.to_string())
 
     def init_workspace(self):
         # remove the workspace if exists
         if os.path.exists(self.workspace):
-            print "Removing the workspace: {0}".format(self.workspace)
+            logging.info("Removing the workspace: {0}".format(self.workspace))
             os.system("rm -rf " + self.workspace)
 
         # create the workspace folder
-        print "Creating new workspace in: {0}".format(self.workspace)
+        logging.info("Creating new workspace in: {0}".format(self.workspace))
         os.system("mkdir -p " + self.workspace)
 
         # archive the rootfs
         if not os.path.exists(self.rootfs):
-            print "Rootfs directory {0} is missing. Exiting now...".format(self.rootfs)
+            logging.error("Rootfs directory {0} is missing. Exiting now...".format(self.rootfs))
             sys.exit(1)
 
         # go into workspace and create an archieve with rootfs
@@ -73,7 +74,7 @@ class Broker():
     def copy_back_in_rootfs(self):
         os.chdir(self.workspace)
         task_folder = "task_" + str(self.job_num)
-        print "Copy the result back from {0}".format(task_folder)
+        logging.info("Copy the result back from {0}".format(task_folder))
         os.system("cp -rf " + task_folder + " rootfs")
 
     def get_fastest_min_host(self, task):
@@ -87,7 +88,7 @@ class Broker():
             elif host.get_expected_load(task) < ret_val:
                 ret_val = host.get_expected_load(task)
                 ret_host = i
-        print "\ton fastest host {0} - {1}".format(ret_val, self.machines[ret_host].to_string())
+        logging.info("\ton fastest host {0} - {1}".format(ret_val, self.machines[ret_host].to_string()))
         return ret_host
 
     def schedule_tasks(self, tasks=[]):
@@ -116,7 +117,7 @@ class Broker():
                 sleep(10)
 
     def schedule_task(self, task):
-        print '\nScheduling task ' + task.to_string()
+        logging.info('\nScheduling task ' + task.to_string())
         # each task has its own folder in the workspace
         self.create_task_workspace(task)
 

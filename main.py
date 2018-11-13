@@ -3,8 +3,6 @@ import logging
 from controller.local_controller import LocalController
 import argparse
 
-logging.basicConfig(filename='engine.log', level=logging.INFO)
-
 parser = argparse.ArgumentParser(description="Adaptive Parallel Execution Engine")
 parser.add_argument('--config', action = "store", help = "Controller config file",
                     type = str, required = False)
@@ -16,6 +14,9 @@ parser.add_argument('--commands-file', action = "store", help = "Controller comm
                     type = str, required = False)
 
 def main():
+    print("Starting execution engine!")
+    logging.basicConfig(filename='cosmos.log', level=logging.INFO)
+
     args = parser.parse_args()
     cconfig = args.config
     bconfig = args.broker_config
@@ -30,6 +31,8 @@ def main():
     controller.parse_commands_file(commands_file)
 
     controller.main_loop()
+
+    print("Execution engine finished! Exiting now.")
 
 if __name__ == '__main__':
     main()

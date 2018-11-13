@@ -38,7 +38,7 @@ class CorsikaOptimizer(Optimizer):
 			reas_f = open(self.reasfile, "r")
 			reasf_lines = reas_f.readlines()
 		except Exception as e:
-			print(e)
+			logging.error(e)
 			sys.exit(-1)
 
 		# Try to split the Antennas SIMx.list file into 
@@ -79,7 +79,7 @@ class CorsikaOptimizer(Optimizer):
 			new_runfiles[i].close()
 			new_reasfiles[i].close()
 		for task in tasks:
-			print(task)
+			logging.info(task)
 		self.params['tasks'] = tasks
 		self.optimized_params = self.params
 		return self.params

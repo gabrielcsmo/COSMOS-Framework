@@ -1,5 +1,6 @@
 from optimizer import Optimizer
 from broker.task import Task
+import logging
 
 class T4l_optimizer(Optimizer):
 
@@ -18,10 +19,10 @@ class T4l_optimizer(Optimizer):
         if task.id in self.config:
             entry = self.config[task.id]
             if entry["pre"] == "":
-                print "Nothing to optimize for task {}".format(task.id)
+                logging.info("Nothing to optimize for task {}".format(task.id))
                 return
-            print "Calling optimization method {} for task {}".format(entry["pre"],
-                                                                      task.id)
+            logging.info("Calling optimization method {} for task {}".format(entry["pre"],
+                                                                             task.id))
             getattr(self, entry["pre"])()
 
     def post_optimize_task(self, task):
@@ -36,16 +37,14 @@ class T4l_optimizer(Optimizer):
         if task.id in self.config:
             entry = self.config[task.id]
             if entry["post"] == "":
-                print "Nothing to optimize for task {}".format(task.id)
+                logging.info("Nothing to optimize for task {}".format(task.id))
                 return
-            print "Calling optimization method {} for task {}".format(entry["post"],
-                                                                      task.id)
+            logging.info("Calling optimization method {} for task {}".format(entry["post"],
+                                                                             task.id))
             getattr(self, entry["post"])()
 
     def pre_optimize_t4l(self):
-        print "Pre Optimize Tools4Lammps"
         pass
 
     def post_optimize_t4l(self):
-        print "Post Optimize Tools4Lammps"
         pass

@@ -3,6 +3,7 @@ import signal
 from lib.util import signal_handler
 from lib.host import Host
 import subprocess
+import logging
 from time import sleep
 import os
 import sys
@@ -11,13 +12,14 @@ signal.signal(signal.SIGINT, signal_handler)
 
 class LocalBroker():
     def __init__(self, config, optimizer):
-        print "Creating Local Broker Object"
+        logging.info("Creating Local Broker Object")
         self.config = config
         self.scheduling_method = self.config['scheduling']
         self.hosts_info = self.config['hosts']
         self.rootfs = os.path.expanduser(self.config['rootfs'])
         self.workspace = os.path.expanduser(self.config['workspace'])
         self.propagate = bool(self.config["propagate_workspace"])
+        self.timeout = int(self.config['timeout'])
         self.machines = []
         self.tasks = []
         self.job_num = 0
@@ -32,23 +34,23 @@ class LocalBroker():
             self.machines.append(Host(hinfo, None))
 
     def print_hosts(self):
-        print "\nHosts:"
+        logging.info("\nHosts:")
         for machine in self.machines:
-            print machine.to_string()
+            logging.info(machine.to_string())
 
     def init_workspace(self):
         # remove the workspace if exists
         if os.path.exists(self.workspace):
-            print "Removing the workspace: {0}".format(self.workspace)
+            logging.info("Removing the workspace: {0}".format(self.workspace))
             os.system("rm -rf " + self.workspace)
 
         # create the workspace folder
-        print "Creating new workspace in: {0}".format(self.workspace)
+        logging.info("Creating new workspace in: {0}".format(self.workspace))
         os.system("mkdir -p " + self.workspace)
 
         # archive the rootfs
         if not os.path.exists(self.rootfs):
-            print "Rootfs directory {0} is missing. Exiting now...".format(self.rootfs)
+            logging.error("Rootfs directory {0} is missing. Exiting now...".format(self.rootfs))
             sys.exit(1)
 
         # go into workspace and create an archieve with rootfs
@@ -56,7 +58,7 @@ class LocalBroker():
 
         os.system("cp -rf " + self.rootfs + " rootfs")
         # save the rootfs into an archieve
-        os.system("tar -zcvf rootfs.tar.gz rootfs")
+        os.system("tar -zcf rootfs.tar.gz rootfs")
 
     def create_task_workspace(self, task):
         # go into workspace
@@ -73,7 +75,7 @@ class LocalBroker():
     def copy_back_in_rootfs(self):
         os.chdir(self.workspace)
         task_folder = "task_" + str(self.job_num)
-        print "Copy the result back from {0}".format(task_folder)
+        logging.info("Copy the result back from {0}".format(task_folder))
         os.system("cp -rf " + task_folder + " rootfs")
 
     def get_fastest_min_host(self, task):
@@ -87,7 +89,7 @@ class LocalBroker():
             elif host.get_expected_load(task) < ret_val:
                 ret_val = host.get_expected_load(task)
                 ret_host = i
-        print "\ton fastest host {0} - {1}".format(ret_val, self.machines[ret_host].to_string())
+        logging.info("\ton fastest host {0} - {1}".format(ret_val, self.machines[ret_host].to_string()))
         return ret_host
 
     def schedule_tasks(self, tasks=[]):
@@ -113,10 +115,10 @@ class LocalBroker():
                         exit = False
                     else:
                         self.optimizer.post_optimize_task(task)
-                sleep(10)
+                sleep(self.timeout)
 
     def schedule_task(self, task):
-        print '\nScheduling task ' + task.to_string()
+        logging.info('\nScheduling task ' + task.to_string())
         # each task has its own folder in the workspace
         self.create_task_workspace(task)
 

@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import logging
 
 class Task():
     def __init__(self, id, task_dependencies = [],
@@ -9,8 +10,8 @@ class Task():
         self.id = id
         self.task_dependencies = [str(i) for i in task_dependencies]
         if self.id in self.task_dependencies:
-            print "Task {0} is in its own dependencies: {1}".format(self.id,
-                                                                    str(self.task_dependencies))
+            logging.info("Task {0} is in its own dependencies: {1}".format(self.id,
+                                                                    str(self.task_dependencies)))
             sys.exit(1)
         self.custom_rootfs = custom_rootfs
         self.propagate_workspace = propagate_ws
@@ -78,7 +79,7 @@ class Task():
         for task in tasks:
             if task.id in self.task_dependencies:
                 if not task.is_finished():
-                    print "Task " + self.id + " has unmet dependencies: " + task.id
+                    logging.info("Task " + self.id + " has unmet dependencies: " + task.id)
                     return False
         self.ready = True
         return True
@@ -91,7 +92,7 @@ class Task():
 
     def mark_if_finished_local(self):
         if not self.background_thread:
-            print "Background thread not set"
+            logging.info("Background thread not set")
             return
         if self.finished:
             return
@@ -113,7 +114,7 @@ class Task():
         try:
             out = subprocess.check_output(['qstat'])
         except Exception as e:
-            print "Failed to check if job is active"
+            logging.info("Failed to check if job is active")
 
         """Search for qsub task id into active jobs"""
         lines = out.split("\n")
@@ -122,7 +123,7 @@ class Task():
             if self.qsub_id in line:
                 finished = False
         if finished:
-            print "Task " + self.qsub_id + " finished."
+            logging.info("Task " + self.qsub_id + " finished.")
             self.finished = True
 
     def set_background_thread(self, thr):
@@ -163,5 +164,5 @@ def create_tasks(tdic):
                      command=entry["command"], args=entry["args"])
             task_list.append(t)
         except Exception as e:
-            print e
+            logging.error(e)
     return task_list

@@ -12,5 +12,6 @@
   "scheduling" : "min-min",
   "rootfs" : "~/repos/COSMOS-Framework/task_examples/pi_computing",
   "workspace" : "~/workspace",
-  "propagate_workspace" : "True"
+  "propagate_workspace" : "True",
+  "timeout" : 10
 }
