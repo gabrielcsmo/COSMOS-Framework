@@ -2,7 +2,7 @@ import logging
 import sys
 import os
 import json
-from controller import Controller
+from controller.controller import Controller
 from broker.local_broker import LocalBroker
 from optimizer.optimizer import Optimizer
 from broker.task import create_tasks
