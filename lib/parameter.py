@@ -1,6 +1,15 @@
 from pydoc import locate
 
 class Parameter():
+    # Simple format <val>
+    S_FORMAT = 0
+    # Format -name=val
+    EQ_FORMAT1 = 1
+    # Format --name=val
+    EQ_FORMAT2 = 2
+
+    SUPPORTED_FMTS = 3
+
     def __init__(self, **kwargs):
         """Form a Task Parameter
 
@@ -41,6 +50,13 @@ class Parameter():
             self.value = self.type(kwargs['value'])
         except Exception as e:
             raise AttributeError("Value must have type {}".format(self.stype)) from e
+
+        if 'fmt' not in kwargs:
+            raise KeyError("Cannot init a parameter without format")
+        else:
+            self.fmt = int(kwargs["fmt"])
+            if self.fmt >= Parameter.SUPPORTED_FMTS:
+                raise("Format idx {} not supported".format(self.fmt))
 
         self.dir = None
         if 'dir' in kwargs:
@@ -101,5 +117,5 @@ class Parameter():
         return " {}".format(self.value)
 
     def __str__(self):
-        return "[name: {}, type: {}, value: {}, direction: {}, step: {}]".format(
-                 self.name, self.stype, self.value, self.dir, self.step)
+        return "[name: {}, type: {}, value: {}, fmt: {}, direction: {}, step: {}]".format(
+                 self.name, self.stype, self.value, self.fmt, self.dir, self.step)
