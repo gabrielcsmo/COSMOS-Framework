@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import datetime
 
 """Based on LAMMPS Data Format: https://lammps.sandia.gov/doc/2001/data_format.html"""
 import sys
@@ -29,15 +30,21 @@ class LammpsInputFile():
 
         self.header_keys = self.header.keys()
         self.input_fname = input_fname
+        self.output_fname = input_fname.strip() + ".out"
         self.input_file = None
         self.lines = []
         self.current_index = -1
 
-        self.masses = []
-        self.atoms = []
-        self.velocities = []
-        self.bonds = []
-        self.angles = []
+        """!!!Order is important
+              TODO - incomplete list
+        """
+        self.entries = {
+            "Masses"    : [],
+            "Atoms"     : [],
+            "Velocities": [],
+            "Bonds"     : [],
+            "Angles"    : []
+        }
 
         """parse the file"""
         self.read_file()
@@ -127,7 +134,7 @@ class LammpsInputFile():
         end = start + N
         for l in self.lines[start:end]:
             tokens = l.split()
-            self.masses.append(float(tokens[1]))
+            self.entries["Masses"].append((int(tokens[0]), float(tokens[1])))
         self.current_index = end
 
     def parse_atoms(self):
@@ -154,7 +161,7 @@ class LammpsInputFile():
                 atom = (idx, tag, type, q, x, y, z, nx, ny, nz)
             else:
                 atom = (idx, tag, type, q, x, y, z)
-            self.atoms.append(atom)
+            self.entries["Atoms"].append(atom)
         self.current_index = end
 
     def parse_velocities(self):
@@ -169,7 +176,7 @@ class LammpsInputFile():
             vy = float(items[2])
             vz = float(items[3])
             vel = (idx, vx, vy, vz)
-            self.velocities.append(vel)
+            self.entries["Velocities"].append(vel)
         self.current_index = end
 
     def parse_bonds(self):
@@ -184,7 +191,7 @@ class LammpsInputFile():
             atom1 = int(items[2])
             atom2 = int(items[3])
             bond = (idx, bond_type, atom1, atom2)
-            self.bonds.append(bond)
+            self.entries["Bonds"].append(bond)
         self.current_index = end
 
     def parse_angles(self):
@@ -200,7 +207,7 @@ class LammpsInputFile():
             atom2 = int(items[3])
             atom3 = int(items[4])
             angle = (idx, angle_type, atom1, atom2, atom3)
-            self.angles.append(angle)
+            self.entries["Angles"].append(angle)
         self.current_index = end
 
     def parse_header(self):
@@ -272,6 +279,40 @@ class LammpsInputFile():
 
         print("Reading file: Done")
 
+    def write_to_file(self):
+        output_file = open(self.output_fname, "w+")
+        """First two lines are ignored"""
+        output_file.write("LAMMPS Description ({})\n\n".format(datetime.datetime.now()))
+        empty_line = True
+
+        for k in self.header:
+            if k.endswith("types") and empty_line:
+                output_file.write("\n")
+                empty_line = False
+
+            if self.header[k] != 0:
+                output_file.write("{} {}\n".format(self.header[k], k))
+
+        """Simulation box"""
+        output_file.write("\n")
+        for k in self.box:
+            output_file.write("{} {} {}\n".format(self.box[k][0], self.box[k][0], k))
+        output_file.write("\n")
+
+
+        for entry in self.entries:
+            elist = self.entries[entry]
+            if elist:
+                output_file.write("{}\n\n".format(entry))
+                for item in elist:
+                    for i in item:
+                        output_file.write(" {}".format(i))
+                    output_file.write("\n")
+
+                output_file.write("\n")
+
+        output_file.close()
+
     def __del__(self):
         self.input_file.close()
         print("All cleared!")
@@ -279,16 +320,20 @@ class LammpsInputFile():
     def __str__(self):
         res = "Header: " + str(self.header) + "\n"
         res += "Box: " + str(self.box) + "\n"
-        res += "Masses: " + str(self.masses) + "\n"
-        res += "Atoms: [" + str(self.atoms[0]) + "\n\t\t. . .\n\t" + str(self.atoms[-1]) + "]\n"
-        res += "Velocities: [" + str(self.velocities[0]) + "\n\t\t. . .\n\t" + str(self.velocities[-1]) + "]\n"
-        res += "Bonds: [" + str(self.bonds[0]) + "\n\t\t. . .\n\t" + str(self.bonds[-1]) + "]\n"
-        res += "Angles: [" + str(self.angles[0]) + "\n\t\t. . .\n\t" + str(self.angles[-1]) + "]\n"
+        res += "Masses: " + str(self.entries["Masses"]) + "\n"
+        res += "Atoms: [" + str(self.entries["Atoms"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Atoms"][-1]) + "]\n"
+        res += "Velocities: [" + str(self.entries["Velocities"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Velocities"][-1]) + "]\n"
+        res += "Bonds: [" + str(self.entries["Bonds"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Bonds"][-1]) + "]\n"
+        res += "Angles: [" + str(self.entries["Angles"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Angles"][-1]) + "]\n"
         return res
+
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print("Usage: {} <input_file>".format(sys.argv[0]))
+        print("Usage: {} <desc_file>".format(sys.argv[0]))
         sys.exit(-1)
     l = LammpsInputFile(sys.argv[1])
+
     print(l)
+
+    l.write_to_file()
