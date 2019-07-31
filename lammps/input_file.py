@@ -49,6 +49,39 @@ class LammpsInputFile():
         """parse the file"""
         self.read_file()
 
+    def get_header(self):
+        return self.header
+
+    def get_atoms(self):
+        return self.entries["Atoms"]
+
+    def set_atoms(self, l = []):
+        self.entries["Atoms"] = l
+
+    def get_masses(self):
+        return self.entries["Masses"]
+
+    def set_masses(self, l = []):
+        self.entries["Masses"] = l
+
+    def get_velocities(self):
+        return self.entries["Velocities"]
+
+    def set_velocities(self, l = []):
+        self.entries["Velocities"] = l
+
+    def get_bonds(self):
+        return self.entries["Bonds"]
+
+    def set_bonds(self, l = []):
+        self.entries["Bonds"] = l
+
+    def get_angles(self):
+        return self.entries["Angles"]
+
+    def set_angles(self, l = []):
+        self.entries["Angles"] = l
+
     def parse_nonbond_coeffs(self):
         self.current_index = len(self.lines)
         print("Not implemented!")
@@ -235,7 +268,6 @@ class LammpsInputFile():
             if sline.endswith("xlo xhi"):
                 tokens = sline.strip(" xlo xhi").split(" ")
                 tokens = [i for i in tokens if i != ""]
-                print(tokens)
                 self.box["xlo xhi"] = (float(tokens[0]), float(tokens[1]))
             elif sline.endswith("ylo yhi"):
                 tokens = sline.strip(" ylo yhi").split(" ")
