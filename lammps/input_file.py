@@ -178,14 +178,22 @@ class LammpsInputFile():
         end = start + N
         for l in self.lines[start:end]:
             items = l.split()
-            idx = int(items[0])
-            tag = int(items[1])
-            type = int(items[2])
-            q = float(items[3])
-            x = float(items[4])
-            y = float(items[5])
-            z = float(items[6])
-
+            if (len(items) == 7):
+                idx = int(items[0])
+                tag = int(items[1])
+                type = int(items[2])
+                q = float(items[3])
+                x = float(items[4])
+                y = float(items[5])
+                z = float(items[6])
+            else:
+                idx = int(items[0])
+                tag = 1
+                type = int(items[1])
+                q = float(items[2])
+                x = float(items[3])
+                y = float(items[4])
+                z = float(items[5])
             """it means we also have nx ny nz"""
             if len(items) == 10:
                 nx = float(items[7])
@@ -352,11 +360,16 @@ class LammpsInputFile():
     def __str__(self):
         res = "Header: " + str(self.header) + "\n"
         res += "Box: " + str(self.box) + "\n"
-        res += "Masses: " + str(self.entries["Masses"]) + "\n"
-        res += "Atoms: [" + str(self.entries["Atoms"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Atoms"][-1]) + "]\n"
-        res += "Velocities: [" + str(self.entries["Velocities"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Velocities"][-1]) + "]\n"
-        res += "Bonds: [" + str(self.entries["Bonds"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Bonds"][-1]) + "]\n"
-        res += "Angles: [" + str(self.entries["Angles"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Angles"][-1]) + "]\n"
+        if self.entries["Masses"]:
+            res += "Masses: " + str(self.entries["Masses"]) + "\n"
+        if self.entries["Atoms"]:
+            res += "Atoms: [" + str(self.entries["Atoms"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Atoms"][-1]) + "]\n"
+        if self.entries["Velocities"]:
+            res += "Velocities: [" + str(self.entries["Velocities"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Velocities"][-1]) + "]\n"
+        if self.entries["Bonds"]:
+            res += "Bonds: [" + str(self.entries["Bonds"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Bonds"][-1]) + "]\n"
+        if self.entries["Angles"]:
+            res += "Angles: [" + str(self.entries["Angles"][0]) + "\n\t\t. . .\n\t" + str(self.entries["Angles"][-1]) + "]\n"
         return res
 
 
