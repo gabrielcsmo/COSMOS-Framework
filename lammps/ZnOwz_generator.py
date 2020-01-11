@@ -11,32 +11,34 @@ from math import sqrt
 from pymatgen import Structure, Lattice
 from monty.serialization import dumpfn, loadfn
 
-#from crystal_toolkit import view
+# measurements are done in nm
+CELL_DX = 0.328910293
+CELL_DY = 0.328910293
+CELL_DZ = 0.530682059
 
-def simple_element():
-    my_element = Element('Zn')
-    my_spec = Specie('Zn', oxidation_state=+2)
-    print(my_element.average_ionic_radius)
+# CELL SIZE
+DX = 20
+DY = 20
+DZ = 100
 
-    print(my_spec)
-
-def simple_zno_molecule():
-    my_molecule = Molecule(['Zn', 'O'], [[0.5, sqrt(3) / 2, 0], [0.5, -sqrt(3) / 2, 0]])
-    print(my_molecule)
-    print(my_molecule.cart_coords)
-    print(my_molecule.center_of_mass)
-    print(len(my_molecule))
-
-    #site can hold Element, Specie or Composition
-    site0 = my_molecule[0]
-    print(site0.specie)
-
-def structure_from_file(fname):
+"""Starting from ZnO wurtzite conventional standard cif
+we will create a supercell"""
+def create_supercell(fname):
     struct = Structure.from_file(fname)
-    struct.make_supercell([10, 10, 10])
-    struct.to('cif', 'zno-wz_final.dat')
-    #print(struct.)
-    dumpfn(struct, "ZnO-wz.json")
+    print(struct.composition)
+    OX_replication = int(DX / CELL_DX)
+    OY_replication = int(DY / CELL_DY)
+    OZ_replication = int(DZ / CELL_DZ)
+
+    print("Supercell sizes: {} {} {}".format(OX_replication, OY_replication, OZ_replication))
+
+    print("Creating supercell. Please wait, it might take a while")
+    struct.make_supercell([OX_replication, OY_replication, OZ_replication])
+
+    print("Dumping ZnO supercell to file")
+    struct.to('cif', 'ZnO-supercell.cif')
+
+    return struct
 
 def main():
     print("python version: {}".format(sys.version))
@@ -47,7 +49,10 @@ def main():
     #simple_zno_molecule()
 
     if len(sys.argv) == 2:
-        structure_from_file(sys.argv[1])
+        struct = create_supercell(sys.argv[1])
+    else:
+        print("Usage: python3 {} <cif_file>".format(sys.argv[0]))
+        sys.exit(0)
 
 if __name__ == '__main__':
     main()
