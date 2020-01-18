@@ -12,14 +12,14 @@ from pymatgen import Structure, Lattice
 from monty.serialization import dumpfn, loadfn
 
 # measurements are done in nm
-CELL_DX = 0.328910293
-CELL_DY = 0.328910293
-CELL_DZ = 0.530682059
+CELL_DX = 0.32 #8910293
+CELL_DY = 0.32 #8910293
+CELL_DZ = 0.53 #0682059
 
 # CELL SIZE
 DX = 20
 DY = 20
-DZ = 100
+DZ = 20
 
 """Starting from ZnO wurtzite conventional standard cif
 we will create a supercell"""
@@ -37,7 +37,7 @@ def create_supercell(fname):
 
     print("Dumping ZnO supercell to file")
     struct.to('cif', 'ZnO-supercell.cif')
-
+    #struct.to('json', 'ZnO-supercell.json')
     return struct
 
 def main():
