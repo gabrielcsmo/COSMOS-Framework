@@ -112,7 +112,7 @@ class Task():
 
         out = ""
         try:
-            out = subprocess.check_output(['qstat'])
+            out = subprocess.check_output(['qstat']).decode('utf-8')
         except Exception as e:
             logging.info("Failed to check if job is active")
 

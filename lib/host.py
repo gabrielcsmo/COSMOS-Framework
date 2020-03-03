@@ -80,8 +80,9 @@ class Host():
     def qsub_exec(self, task):
         out = None
         try:
-            command = ["qsub", "-q", str(self.hostname), "-cwd", task.get_command()]
-            out = subprocess.check_output(command)
+            script_name = self.create_script(task)
+            command = ["qsub", "-q", str(self.hostname), "-cwd", script_name]
+            out = subprocess.check_output(command).decode('utf-8')
         except Exception as e:
             logging.error("Failed to submit job: {}".format(e))
             return None
@@ -89,19 +90,23 @@ class Host():
         # Your job 994012 ("run.sh") has been submitted
         tokens = out.split(" ")
         task.set_qsub_id(tokens[2])
+    
+    def create_script(self, task):
+        """create a script where to write command so we can identify
+        it later with ps - required to see if task finished"""
+        script_name = '_'.join([self.hostname, 'task', task.id]).replace(' ', '')
+
+        """write the full command in the script and make it exec"""
+        full_cmd = ' '.join([task.get_command(), task.get_args()])
+        os.system('echo "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
+                                                                script_name,
+                                                                script_name))
+        
+        return script_name
 
     def local_exec(self, task):
         try:
-            """create a script where to write command so we can identify
-            it later with ps - required to see if task finished"""
-            script_name = '_'.join([self.hostname, 'task', task.id]).replace(' ', '')
-
-            """write the full command in the script and make it exec"""
-            full_cmd = ' '.join([task.get_command(), task.get_args()])
-
-            os.system('echo "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
-                                                                           script_name,
-                                                                           script_name))
+            script_name = self.create_script(task)
             task.set_background_thread(BackgroundThread(script_name))
 
         except Exception as e:
