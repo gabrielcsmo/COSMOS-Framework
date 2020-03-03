@@ -44,7 +44,7 @@ class BackgroundThread(object):
 
     def is_finished(self):
         command = ['ps', '-ux']
-        out = subprocess.check_output(command)
+        out = subprocess.check_output(command).decode('utf-8')
         if self.command in out:
             return False
         return True
@@ -99,8 +99,7 @@ class Host():
             """write the full command in the script and make it exec"""
             full_cmd = ' '.join([task.get_command(), task.get_args()])
 
-
-            os.system('echo -e "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
+            os.system('echo "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
                                                                            script_name,
                                                                            script_name))
             task.set_background_thread(BackgroundThread(script_name))
