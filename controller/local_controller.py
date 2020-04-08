@@ -62,3 +62,4 @@ class LocalController(Controller):
         self.print_info()
 
         broker.schedule_tasks(self.tasks)
+        broker.sys_info.stop_server.set()

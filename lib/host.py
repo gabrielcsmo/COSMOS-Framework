@@ -4,7 +4,8 @@ import os
 import subprocess
 from multiprocessing import Process
 import threading
-
+import lib.info_service as info_service
+from broker.task import Task
 
 def exec_func(**kwargs):
     logging.info("Executing task: " + str(kwargs))
@@ -50,21 +51,56 @@ class BackgroundThread(object):
         return True
 
 class Host():
-    def __init__(self, args, prereq):
+    def __init__(self, args, prereq, workspace):
         self.raw_args = args
         logging.info(self.raw_args)
         self.hostname = args['hostname']
+        self.safe_hostname = self.hostname.replace('@', '_')
         self.ip = args['ip']
         self.cpus = args['cpus']
         self.used_cpus = 0
         self.processing_power = self.cpus * args['gflops']
         self.user = args['user']
         self.type = args['type']
+        self.python_exec = args['python_exec'] if 'python_exec' in args else 'python'
+        self.usage_report_timeout = args['usage_report_timeout']
         self.running_tasks = {}
         self.load = 0
         self.prereq = prereq
         self.do_prereq()
         self.cnt = 123
+        self.start_info_service(workspace)
+    
+    def start_info_service(self, workspace):
+        os.chdir(workspace)
+
+        script_name = '_'.join([self.safe_hostname, 'start_daemon']).replace(' ', '')
+
+        script_content = '#!/bin/sh\n' + \
+                         '{} host_info_service.py ' \
+                         '--server {} ' \
+                         '--port {} ' \
+                         '--whoami {} ' \
+                         '--task_prefix {} ' \
+                         '--report_timeout {} ' \
+                         .format(self.python_exec,
+                                 info_service.INFO_SERVICE_HOSTNAME,
+                                 info_service.INFO_SERVICE_PORT,
+                                 self.hostname,
+                                 Task.TASK_PREFIX,
+                                 self.usage_report_timeout)
+
+        os.system('echo "{}" > {} && chmod +x {}'.format(script_content, script_name, script_name))
+        
+        host_info_service_path = os.path.dirname(os.path.realpath(__file__)) + '/host_info_service.py'
+        os.system("cp {} .".format(host_info_service_path))
+
+        try:
+            command = ["qsub", "-q", str(self.hostname), "-cwd", script_name]
+            subprocess.run(command)
+        except Exception as e:
+            logging.error("Failed to submit host info service job: {}".format(e))
+            return None
 
     def do_prereq(self):
         if self.prereq == None:
@@ -94,13 +130,15 @@ class Host():
     def create_script(self, task):
         """create a script where to write command so we can identify
         it later with ps - required to see if task finished"""
-        script_name = '_'.join([self.hostname, 'task', task.id]).replace(' ', '')
+        script_name = '_'.join([self.safe_hostname, 'task', task.id]).replace(' ', '')
 
         """write the full command in the script and make it exec"""
         full_cmd = ' '.join([task.get_command(), task.get_args()])
-        os.system('echo "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
-                                                                script_name,
-                                                                script_name))
+
+        script_content = '#!/bin/sh\n' + \
+                         '{}\n'.format(full_cmd)
+
+        os.system('echo "{}" > {} && chmod +x {}'.format(script_content, script_name, script_name))
         
         return script_name
 

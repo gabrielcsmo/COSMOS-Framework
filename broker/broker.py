@@ -30,7 +30,7 @@ class Broker():
 
     def init_hosts(self):
         for hinfo in self.hosts_info:
-            self.machines.append(Host(hinfo, None))
+            self.machines.append(Host(hinfo, None, self.workspace))
 
     def print_hosts(self):
         logging.info("\nHosts:")
@@ -70,6 +70,8 @@ class Broker():
         # copy the rootfs in the task folder
         os.system("cp -rf " + task.get_rootfs() + " " + task.task_folder)
         os.chdir(task.task_folder)
+
+        task.add_cmd_prefix()
 
     def copy_back_in_rootfs(self):
         os.chdir(self.workspace)

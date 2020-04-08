@@ -7,6 +7,7 @@ import logging
 from time import sleep
 import os
 import sys
+import lib.info_service as info_service
 from lib.qstat_parser import qstat_parse
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -25,14 +26,14 @@ class LocalBroker():
         self.tasks = []
         self.job_num = 0
         # create hosts
-        self.init_hosts()
         self.init_workspace()
+        self.sys_info = info_service.SystemInfoServer()
+        self.init_hosts()
         self.optimizer = optimizer
-
 
     def init_hosts(self):
         for hinfo in self.hosts_info:
-            self.machines.append(Host(hinfo, None))
+            self.machines.append(Host(hinfo, None, self.workspace))
 
     def print_hosts(self):
         logging.info("\nHosts:")
@@ -72,6 +73,8 @@ class LocalBroker():
         # copy the rootfs in the task folder
         os.system("cp -rf " + task.get_rootfs() + " " + task.task_folder)
         os.chdir(task.task_folder)
+
+        task.add_cmd_prefix()
 
     def copy_back_in_rootfs(self):
         os.chdir(self.workspace)
@@ -152,7 +155,25 @@ class LocalBroker():
         pass
 
     def priority_schedule(self, task):
-        pass
+        best_machine, best_score = None, None
+        current_usage = {}
+        for host in self.machines:
+            usage = self.sys_info.get_usage(host.hostname)
+
+            # skip machines that are already under heavy load
+            score = usage['system'] + usage['tasks']
+            if best_machine is None or score < best_score:
+                best_machine = host
+                best_score = score
+
+        # we receive usage stats periodically, so we add the estimated task length to the current score
+        # so that if another task is scheduled before the usage is updated we won't end up
+        # scheduling on the same best_machine (this is usually the case for the first scheduled tasks)
+        usage['tasks'] += task.length / 10
+        usage = self.sys_info.get_usage(best_machine.hostname)
+        usage['system'] += task.length / 10
+
+        best_machine.send_task(task)
     
     # uses 'qstat' to find information about the system
     # because qstat is not updated often, this policy yields best results with long tasks
