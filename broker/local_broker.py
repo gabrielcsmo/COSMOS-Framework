@@ -7,7 +7,7 @@ import logging
 from time import sleep
 import os
 import sys
-import lib.info_service as info_service
+import lib.info_server as info_server
 from lib.qstat_parser import qstat_parse
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -27,13 +27,19 @@ class LocalBroker():
         self.job_num = 0
         # create hosts
         self.init_workspace()
-        self.sys_info = info_service.SystemInfoServer()
+        if self.scheduling_method == 'short-tasks':
+            self.sys_info = info_server.SystemInfoServer()
+        else:
+            self.sys_info = None
         self.init_hosts()
         self.optimizer = optimizer
 
     def init_hosts(self):
         for hinfo in self.hosts_info:
-            self.machines.append(Host(hinfo, None, self.workspace))
+            host = Host(hinfo, None)
+            self.machines.append(host)
+            if self.sys_info is not None:
+                host.start_info_server(self.workspace)
 
     def print_hosts(self):
         logging.info("\nHosts:")
@@ -137,7 +143,9 @@ class LocalBroker():
         elif self.scheduling_method == 'max-min':
             self.max_min_schedule(task)
         elif self.scheduling_method == 'long-tasks':
-            self.long_tasks_schedule(task)
+            self.long_tasks_load_schedule(task)
+        elif self.scheduling_method == 'short-tasks':
+            self.short_task_load_schedule(task)
         else:
             self.priority_schedule(task)
 
@@ -155,6 +163,9 @@ class LocalBroker():
         pass
 
     def priority_schedule(self, task):
+        pass
+
+    def short_task_load_schedule(self, task):
         best_machine, best_score = None, None
         current_usage = {}
         for host in self.machines:
@@ -177,7 +188,7 @@ class LocalBroker():
     
     # uses 'qstat' to find information about the system
     # because qstat is not updated often, this policy yields best results with long tasks
-    def long_tasks_schedule(self, task):
+    def long_tasks_load_schedule(self, task):
         best_machine = None
         all_machines_usage = [(host, qstat_parse(host.hostname)) for host in self.machines]
         all_machines_usage = list(filter(lambda elem: elem[1] is not None, all_machines_usage))

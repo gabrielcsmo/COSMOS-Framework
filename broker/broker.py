@@ -30,7 +30,7 @@ class Broker():
 
     def init_hosts(self):
         for hinfo in self.hosts_info:
-            self.machines.append(Host(hinfo, None, self.workspace))
+            self.machines.append(Host(hinfo, None))
 
     def print_hosts(self):
         logging.info("\nHosts:")

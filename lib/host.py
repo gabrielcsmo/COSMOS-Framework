@@ -4,7 +4,7 @@ import os
 import subprocess
 from multiprocessing import Process
 import threading
-import lib.info_service as info_service
+import lib.info_server as info_server
 from broker.task import Task
 
 def exec_func(**kwargs):
@@ -51,7 +51,7 @@ class BackgroundThread(object):
         return True
 
 class Host():
-    def __init__(self, args, prereq, workspace):
+    def __init__(self, args, prereq):
         self.raw_args = args
         logging.info(self.raw_args)
         self.hostname = args['hostname']
@@ -69,9 +69,8 @@ class Host():
         self.prereq = prereq
         self.do_prereq()
         self.cnt = 123
-        self.start_info_service(workspace)
-    
-    def start_info_service(self, workspace):
+
+    def start_info_server(self, workspace):
         os.chdir(workspace)
 
         script_name = '_'.join([self.safe_hostname, 'start_daemon']).replace(' ', '')
@@ -84,8 +83,8 @@ class Host():
                          '--task_prefix {} ' \
                          '--report_timeout {} ' \
                          .format(self.python_exec,
-                                 info_service.INFO_SERVICE_HOSTNAME,
-                                 info_service.INFO_SERVICE_PORT,
+                                 info_server.INFO_SERVICE_HOSTNAME,
+                                 info_server.INFO_SERVICE_PORT,
                                  self.hostname,
                                  Task.TASK_PREFIX,
                                  self.usage_report_timeout)

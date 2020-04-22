@@ -8,7 +8,7 @@ class Task():
     def __init__(self, id, task_dependencies = [],
                  propagate_ws = True, custom_rootfs = None, task_ws_id = None,
                  priority = 0,  length = 0,
-                 command = "", args = ""):
+                 command = "", args = "", cpu_weight = 0.5):
         self.id = id
         self.task_dependencies = [str(i) for i in task_dependencies]
         if self.id in self.task_dependencies:
@@ -29,8 +29,12 @@ class Task():
         self.scheduled = False
         self.already_pre_optimized = False
         self.already_post_optimized = False
-        self.cpu_weight = 0.5
-        self.memory_weight = 0.5
+        self.cpu_weight = cpu_weight
+        if self.cpu_weight > 1:
+            self.cpu_weight = 1
+        elif self.cpu_weight < 0:
+            self.cpu_weight = 0
+        self.memory_weight = 1 - self.cpu_weight
         """ if this task doesn't depend on any other task
             mark it as ready to be scheduled
         """
@@ -174,12 +178,10 @@ def create_tasks(tdic):
         if "task_dependency_id" in entry:
             tdepid = entry["task_dependency_id"]
         try:
+            cpu_weight = entry["cpu_weight"] if 'cpu_weight' in entry else 0.5
             t = Task(id=id, task_dependencies=entry["dependencies"], custom_rootfs=crfs,
                      task_ws_id=tdepid, priority=entry["priority"], length=entry["length"],
-                     command=entry["command"], args=entry["args"])
-            if 'cpu_weight' in entry and 'memory_weight' in entry:
-                t.cpu_weight = entry['cpu_weight']
-                t.memory_weight = entry['memory_weight']
+                     command=entry["command"], args=entry["args"], cpu_weight=cpu_weight)
             task_list.append(t)
         except Exception as e:
             logging.error(e)

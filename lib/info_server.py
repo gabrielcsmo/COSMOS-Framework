@@ -1,6 +1,7 @@
 from threading import Thread, Event
 import socket, select, sys
 from time import sleep
+import logging
 
 INFO_SERVICE_HOSTNAME = socket.gethostname()
 INFO_SERVICE_PORT = 28972
@@ -28,7 +29,7 @@ class Connection(object):
         stats = self.receive.split('|')
         self.usage['system'] = float(stats[0])
         self.usage['tasks'] = float(stats[1])
-        print("{}: {}".format(self.hostname, self.usage))
+        logging.info("{}: {}".format(self.hostname, self.usage))
 
 
 class SystemInfoServer(Thread):
@@ -62,7 +63,7 @@ class SystemInfoServer(Thread):
         try:
             s.bind((INFO_SERVICE_HOSTNAME, INFO_SERVICE_PORT))
         except socket.error as msg:
-            print("Couldn't bind server socket. Error: {}".format(msg))
+            logging.error("[SystemInfoServer] Couldn't bind server socket. Error: {}".format(msg))
             exit(1)
         print("[SystemInfoServer] Listening on {}:{}".format(INFO_SERVICE_HOSTNAME, INFO_SERVICE_PORT))
         s.listen(1)

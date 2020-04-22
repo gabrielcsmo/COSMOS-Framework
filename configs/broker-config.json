@@ -1,16 +1,28 @@
 {
   "hosts" : [
       {
-          "hostname" : "localhost",
+          "hostname" : "ibm-dp.q@dp-wn04",
           "ip" : "",
           "gflops" : 1000,
-          "user" : "gabrielcsmo",
-          "cpus" : 4,
-          "type" : "local"
+          "user" : "george.diaconu2208",
+          "cpus" : 5,
+          "type" : "qsub",
+          "python_exec" : "python3.5",
+          "usage_report_timeout" : 5
+      },
+      {
+        "hostname" : "ibm-dp.q@dp-wn01",
+        "ip" : "",
+        "gflops" : 1000,
+        "user" : "george.diaconu2208",
+        "cpus" : 5,
+        "type" : "qsub",
+        "python_exec" : "python3.5",
+        "usage_report_timeout" : 5
       }
   ],
-  "scheduling" : "min-min",
-  "rootfs" : "~/repos/COSMOS-Framework/task_examples/pi_computing",
+  "scheduling" : "short-tasks",
+  "rootfs" : "~/COSMOS-Framework/task_examples/pi_computing",
   "workspace" : "~/workspace",
   "propagate_workspace" : "True",
   "timeout" : 10
