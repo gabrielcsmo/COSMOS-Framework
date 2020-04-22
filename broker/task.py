@@ -27,6 +27,8 @@ class Task():
         self.scheduled = False
         self.already_pre_optimized = False
         self.already_post_optimized = False
+        self.cpu_weight = 0.5
+        self.memory_weight = 0.5
         """ if this task doesn't depend on any other task
             mark it as ready to be scheduled
         """
@@ -162,6 +164,9 @@ def create_tasks(tdic):
             t = Task(id=id, task_dependencies=entry["dependencies"], custom_rootfs=crfs,
                      task_ws_id=tdepid, priority=entry["priority"], length=entry["length"],
                      command=entry["command"], args=entry["args"])
+            if 'cpu_weight' in entry and 'memory_weight' in entry:
+                t.cpu_weight = entry['cpu_weight']
+                t.memory_weight = entry['memory_weight']
             task_list.append(t)
         except Exception as e:
             logging.error(e)
