@@ -1,8 +1,10 @@
 import subprocess
-import sys
+import sys, os
 import logging
 
 class Task():
+    TASK_PREFIX = "cosmos_task_"
+
     def __init__(self, id, task_dependencies = [],
                  propagate_ws = True, custom_rootfs = None, task_ws_id = None,
                  priority = 0,  length = 0,
@@ -27,6 +29,8 @@ class Task():
         self.scheduled = False
         self.already_pre_optimized = False
         self.already_post_optimized = False
+        self.cpu_weight = 0.5
+        self.memory_weight = 0.5
         """ if this task doesn't depend on any other task
             mark it as ready to be scheduled
         """
@@ -35,6 +39,9 @@ class Task():
         self.background_thread = None
         # local or qsub
         self.task_type = None
+
+    def __str__(self):
+        return self.to_string()
 
     def to_string(self):
         rstr = ""
@@ -47,6 +54,14 @@ class Task():
         rstr += "-> finished: " + str(self.finished) + "\n\t"
         rstr += "-> ready: " + str(self.ready)
         return rstr
+
+    def add_cmd_prefix(self):
+        if self.command[:2] == './':
+            new_command = './' + Task.TASK_PREFIX + self.command[2:]
+        else:
+            new_command = './' + Task.TASK_PREFIX + self.command[2:]
+        os.system("mv {} {}".format(self.command, new_command))
+        self.command = new_command
 
     def get_rootfs(self):
         """
@@ -162,6 +177,9 @@ def create_tasks(tdic):
             t = Task(id=id, task_dependencies=entry["dependencies"], custom_rootfs=crfs,
                      task_ws_id=tdepid, priority=entry["priority"], length=entry["length"],
                      command=entry["command"], args=entry["args"])
+            if 'cpu_weight' in entry and 'memory_weight' in entry:
+                t.cpu_weight = entry['cpu_weight']
+                t.memory_weight = entry['memory_weight']
             task_list.append(t)
         except Exception as e:
             logging.error(e)

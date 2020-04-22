@@ -7,6 +7,8 @@ import logging
 from time import sleep
 import os
 import sys
+import lib.info_service as info_service
+from lib.qstat_parser import qstat_parse
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -24,14 +26,14 @@ class LocalBroker():
         self.tasks = []
         self.job_num = 0
         # create hosts
-        self.init_hosts()
         self.init_workspace()
+        self.sys_info = info_service.SystemInfoServer()
+        self.init_hosts()
         self.optimizer = optimizer
-
 
     def init_hosts(self):
         for hinfo in self.hosts_info:
-            self.machines.append(Host(hinfo, None))
+            self.machines.append(Host(hinfo, None, self.workspace))
 
     def print_hosts(self):
         logging.info("\nHosts:")
@@ -71,6 +73,8 @@ class LocalBroker():
         # copy the rootfs in the task folder
         os.system("cp -rf " + task.get_rootfs() + " " + task.task_folder)
         os.chdir(task.task_folder)
+
+        task.add_cmd_prefix()
 
     def copy_back_in_rootfs(self):
         os.chdir(self.workspace)
@@ -132,6 +136,8 @@ class LocalBroker():
             self.work_queue_schedule(task)
         elif self.scheduling_method == 'max-min':
             self.max_min_schedule(task)
+        elif self.scheduling_method == 'long-tasks':
+            self.long_tasks_schedule(task)
         else:
             self.priority_schedule(task)
 
@@ -149,4 +155,48 @@ class LocalBroker():
         pass
 
     def priority_schedule(self, task):
-        pass
+        best_machine, best_score = None, None
+        current_usage = {}
+        for host in self.machines:
+            usage = self.sys_info.get_usage(host.hostname)
+
+            # skip machines that are already under heavy load
+            score = usage['system'] + usage['tasks']
+            if best_machine is None or score < best_score:
+                best_machine = host
+                best_score = score
+
+        # we receive usage stats periodically, so we add the estimated task length to the current score
+        # so that if another task is scheduled before the usage is updated we won't end up
+        # scheduling on the same best_machine (this is usually the case for the first scheduled tasks)
+        usage['tasks'] += task.length / 10
+        usage = self.sys_info.get_usage(best_machine.hostname)
+        usage['system'] += task.length / 10
+
+        best_machine.send_task(task)
+    
+    # uses 'qstat' to find information about the system
+    # because qstat is not updated often, this policy yields best results with long tasks
+    def long_tasks_schedule(self, task):
+        best_machine = None
+        all_machines_usage = [(host, qstat_parse(host.hostname)) for host in self.machines]
+        all_machines_usage = list(filter(lambda elem: elem[1] is not None, all_machines_usage))
+
+        if len(all_machines_usage) == 0:
+            logging.warn("[long-tasks policy] Could not parse usage for any machine, defaulting to min-min policy.")
+            return self.min_min_schedule(task)
+        elif len(all_machines_usage) == 1:
+            best_machine = all_machines_usage[0][0]
+        else:
+            max_mem_free = max(elem[1]['mem_free'] for elem in all_machines_usage)
+            min_mem_free = min(elem[1]['mem_free'] for elem in all_machines_usage)
+            diff_mem_free = max_mem_free - min_mem_free
+            best_score = None
+            for host, usage in all_machines_usage:
+                normalized_mem_free = (usage['mem_free'] - min_mem_free) / diff_mem_free
+                score = (1 - usage['np_load_avg'] * task.cpu_weight) + normalized_mem_free * task.memory_weight
+                if best_machine is None or score > best_score:
+                    best_machine, best_score = host, score
+        
+        logging.info("[long-tasks policy] Schedule on " + best_machine.hostname)
+        best_machine.send_task(task)

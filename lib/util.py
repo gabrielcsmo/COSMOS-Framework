@@ -23,7 +23,7 @@ def init_hosts(args):
     ret_hosts = []
     for host_info in hosts:
         host_info['output_folder'] = output_folder
-        ret_hosts.append(Host(host_info, args['pre-req']))
+        ret_hosts.append(Host(host_info, args['pre-req'], args['workspace']))
     return ret_hosts
 
 def try_converting_from_string(s):
