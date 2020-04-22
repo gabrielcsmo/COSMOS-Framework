@@ -22,27 +22,30 @@ class SystemInfoService(object):
     def _procs_pid_cmd(self):
         return "ps -u $USER -o pid,cmd | grep {}* | grep -v grep | awk '{}'".format(self.task_prefix, "{print $1}")
 
-    def get_cpu_percent_used(self):
+    def get_resources_used(self):
         raw = os.popen(self._procs_pid_cmd).read()
         pids = [int(pid) for pid in filter(lambda p: len(p) > 0, raw.split('\n'))]
 
-        total_usage_percent = 0.0
+        cpu_total_usage_percent = 0.0
+        memory_total_usage_percent = 0.0
         nprocs = len(pids)
         for pid in pids:
             try:
                 proc = ps.Process(pid)
-                total_usage_percent += proc.cpu_percent(0.1)
+                cpu_total_usage_percent += proc.cpu_percent(0.1)
+                memory_total_usage_percent += proc.memory_percent()
             except ps.NoSuchProcess:
                 nprocs -= 1
 
-        print("pids: {}\nprocs: {}\ntotal: {}\nrand: ".format(pids, nprocs, total_usage_percent), )
-        return total_usage_percent / nprocs if nprocs > 0 else 0.0
+        cpu_total_usage_percent = cpu_total_usage_percent / nprocs if nprocs > 0 else 0.0
+        memory_total_usage_percent = memory_total_usage_percent / nprocs if nprocs > 0 else 0.0
+        return cpu_total_usage_percent, memory_total_usage_percent
     
-    def get_load(self):
-        return ps.cpu_percent()
+    def get_system_load(self):
+        return ps.cpu_percent(), ps.virtual_memory().percent
     
     def get_info(self):
-        return "{}|{}".format(self.get_load(), self.get_cpu_percent_used())
+        return "{}|{}|{}|{}".format(*self.get_system_load(), *self.get_resources_used())
 
 
 def pack_message(message):

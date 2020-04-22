@@ -1,4 +1,4 @@
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 import socket, select, sys
 from time import sleep
 import logging
@@ -13,7 +13,8 @@ class Connection(object):
         self.recv_size = None
         self.send = None
         self.hostname = None
-        self.usage = {'system': 0.0, 'tasks': 0.0}
+        self.usage_lock = Lock()
+        self.usage = {'system': {'cpu': 0.0, 'mem': 0.0}, 'tasks': {'cpu': 0.0, 'mem': 0.0}}
 
     def send_message(self):
         if self.send is None or len(self.send) == 0:
@@ -27,10 +28,20 @@ class Connection(object):
     
     def update_usage(self):
         stats = self.receive.split('|')
-        self.usage['system'] = float(stats[0])
-        self.usage['tasks'] = float(stats[1])
+        stats = [float(s) for s in stats]
+        self.usage_lock.acquire()
+        self.usage['system']['cpu'] = stats[0]
+        self.usage['system']['mem'] = stats[1]
+        self.usage['tasks']['cpu'] = stats[2]
+        self.usage['tasks']['mem'] = stats[3]
+        self.usage_lock.release()
         logging.info("{}: {}".format(self.hostname, self.usage))
-
+    
+    def local_update_usage(self, task):
+        self.usage_lock.acquire()
+        self.usage['system']['cpu'] += (task.length / 10) * task.cpu_weight
+        self.usage['system']['mem'] += (task.length / 10) * task.memory_weight
+        self.usage_lock.release()
 
 class SystemInfoServer(Thread):
     stop_server = Event()
@@ -46,6 +57,9 @@ class SystemInfoServer(Thread):
             sleep(1)
         
         return self.host_to_connection_map[hostname].usage
+    
+    def local_update_usage(self, hostname, task):
+        self.host_to_connection_map[hostname].local_update_usage(task)
 
     def remove_connection(self, fileno):
         conn = self.active_connections[fileno]

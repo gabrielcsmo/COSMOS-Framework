@@ -170,20 +170,16 @@ class LocalBroker():
         current_usage = {}
         for host in self.machines:
             usage = self.sys_info.get_usage(host.hostname)
-
-            # skip machines that are already under heavy load
-            score = usage['system'] + usage['tasks']
-            if best_machine is None or score < best_score:
+            score = (100 - usage['system']['cpu']) * task.cpu_weight + (100 - usage['system']['mem']) * task.memory_weight
+            if best_machine is None or score > best_score:
                 best_machine = host
                 best_score = score
 
         # we receive usage stats periodically, so we add the estimated task length to the current score
         # so that if another task is scheduled before the usage is updated we won't end up
         # scheduling on the same best_machine (this is usually the case for the first scheduled tasks)
-        usage['tasks'] += task.length / 10
-        usage = self.sys_info.get_usage(best_machine.hostname)
-        usage['system'] += task.length / 10
-
+        self.sys_info.local_update_usage(host.hostname, task)
+        
         best_machine.send_task(task)
     
     # uses 'qstat' to find information about the system
