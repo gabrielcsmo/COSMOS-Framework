@@ -91,8 +91,10 @@ class Host():
 
         os.system('echo "{}" > {} && chmod +x {}'.format(script_content, script_name, script_name))
         
-        host_info_service_path = os.path.dirname(os.path.realpath(__file__)) + '/host_info_service.py'
-        os.system("cp {} .".format(host_info_service_path))
+        lib_dir = os.path.dirname(os.path.realpath(__file__))
+        host_info_service_path = lib_dir + '/host_info_service.py'
+        common_path = lib_dir + '/common.py'
+        os.system("cp {} {} .".format(host_info_service_path, common_path))
 
         try:
             command = ["qsub", "-q", str(self.hostname), "-cwd", script_name]

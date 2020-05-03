@@ -50,6 +50,7 @@ failure:
 int main(int argc, char **argv) {
 	double *A, *B, *res;
 	int ret, N;
+	clock_t start, end;
 
 	if (argc < 2) {
 		printf("At least 1 argument required: N - matrix size\n");
@@ -65,9 +66,11 @@ int main(int argc, char **argv) {
 	ret = generate_data(N, &B);
 	if (ret < 0)
 		return ret;
-
+	
+	start = clock();
 	res = multiply(N, A, B);
-
+	end = clock();
+	printf("Time: %f\n", ((double)(end - start)/CLOCKS_PER_SEC));
 	if (A) {
 		free(A);
 	}

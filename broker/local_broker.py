@@ -9,6 +9,7 @@ import os
 import sys
 import lib.info_server as info_server
 from lib.qstat_parser import qstat_parse
+from lib.common import InfoKeys
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -170,7 +171,7 @@ class LocalBroker():
         current_usage = {}
         for host in self.machines:
             usage = self.sys_info.get_usage(host.hostname)
-            score = (100 - usage['system']['cpu']) * task.cpu_weight + (100 - usage['system']['mem']) * task.memory_weight
+            score = (100 - usage[InfoKeys.SYSTEM_CPU]) * task.cpu_weight + (100 - usage[InfoKeys.SYSTEM_MEMORY]) * task.memory_weight
             if best_machine is None or score > best_score:
                 best_machine = host
                 best_score = score

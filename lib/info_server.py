@@ -2,6 +2,8 @@ from threading import Thread, Event, Lock
 import socket, select, sys
 from time import sleep
 import logging
+import json
+from lib.common import InfoKeys
 
 INFO_SERVICE_HOSTNAME = socket.gethostname()
 INFO_SERVICE_PORT = 28972
@@ -14,7 +16,7 @@ class Connection(object):
         self.send = None
         self.hostname = None
         self.usage_lock = Lock()
-        self.usage = {'system': {'cpu': 0.0, 'mem': 0.0}, 'tasks': {'cpu': 0.0, 'mem': 0.0}}
+        self.usage = {InfoKeys.SYSTEM_CPU: 0, InfoKeys.SYSTEM_MEMORY: 0}
 
     def send_message(self):
         if self.send is None or len(self.send) == 0:
@@ -25,22 +27,17 @@ class Connection(object):
             self.send = self.send[bytes_sent:]
         
         self.send = None
-    
-    def update_usage(self):
-        stats = self.receive.split('|')
-        stats = [float(s) for s in stats]
+        
+    def update(self):
+        stats = json.loads(self.receive)
         self.usage_lock.acquire()
-        self.usage['system']['cpu'] = stats[0]
-        self.usage['system']['mem'] = stats[1]
-        self.usage['tasks']['cpu'] = stats[2]
-        self.usage['tasks']['mem'] = stats[3]
+        self.usage = stats
         self.usage_lock.release()
-        logging.info("{}: {}".format(self.hostname, self.usage))
-    
+        
     def local_update_usage(self, task):
         self.usage_lock.acquire()
-        self.usage['system']['cpu'] += (task.length / 10) * task.cpu_weight
-        self.usage['system']['mem'] += (task.length / 10) * task.memory_weight
+        self.usage[InfoKeys.SYSTEM_CPU] += (task.length / 10) * task.cpu_weight
+        self.usage[InfoKeys.SYSTEM_MEMORY] += (task.length / 10) * task.memory_weight
         self.usage_lock.release()
 
 class SystemInfoServer(Thread):
@@ -55,7 +52,7 @@ class SystemInfoServer(Thread):
     def get_usage(self, hostname):
         while hostname not in self.host_to_connection_map:
             sleep(1)
-        
+   
         return self.host_to_connection_map[hostname].usage
     
     def local_update_usage(self, hostname, task):
@@ -96,6 +93,9 @@ class SystemInfoServer(Thread):
         conn = self.active_connections[fileno]
         received = conn.conn_socket.recv(1024)
 
+        if received is None:
+            return
+
         if conn.recv_size is None:
             conn.recv_size = received[0]
             conn.receive = received[1:].decode()
@@ -105,11 +105,11 @@ class SystemInfoServer(Thread):
         if len(conn.receive) == conn.recv_size:
             # first message received tells us which host is associated with the conenction
             if conn.hostname is None:
-                conn.hostname = conn.receive
-                self.host_to_connection_map[conn.receive] = conn
+                conn.hostname = json.loads(conn.receive)[InfoKeys.HOSTNAME]
+                self.host_to_connection_map[conn.hostname] = conn
                 print("[SystemInfoServer] Registered {}.".format(conn.hostname, fileno))
             else:
-                conn.update_usage()
+                conn.update()
             conn.recv_size, conn.receive = None, None
 
     def run(self):
