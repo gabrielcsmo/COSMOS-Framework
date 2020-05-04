@@ -4,7 +4,8 @@ import os
 import subprocess
 from multiprocessing import Process
 import threading
-
+import lib.info_server as info_server
+from broker.task import Task
 
 def exec_func(**kwargs):
     logging.info("Executing task: " + str(kwargs))
@@ -44,7 +45,7 @@ class BackgroundThread(object):
 
     def is_finished(self):
         command = ['ps', '-ux']
-        out = subprocess.check_output(command)
+        out = subprocess.check_output(command).decode('utf-8')
         if self.command in out:
             return False
         return True
@@ -54,17 +55,53 @@ class Host():
         self.raw_args = args
         logging.info(self.raw_args)
         self.hostname = args['hostname']
+        self.safe_hostname = self.hostname.replace('@', '_')
         self.ip = args['ip']
         self.cpus = args['cpus']
         self.used_cpus = 0
         self.processing_power = self.cpus * args['gflops']
         self.user = args['user']
         self.type = args['type']
+        self.python_exec = args['python_exec'] if 'python_exec' in args else 'python'
+        self.usage_report_timeout = args['usage_report_timeout']
         self.running_tasks = {}
         self.load = 0
         self.prereq = prereq
         self.do_prereq()
         self.cnt = 123
+
+    def start_info_server(self, workspace):
+        os.chdir(workspace)
+
+        script_name = '_'.join([self.safe_hostname, 'start_daemon']).replace(' ', '')
+
+        script_content = '#!/bin/sh\n' + \
+                         '{} host_info_service.py ' \
+                         '--server {} ' \
+                         '--port {} ' \
+                         '--whoami {} ' \
+                         '--task_prefix {} ' \
+                         '--report_timeout {} ' \
+                         .format(self.python_exec,
+                                 info_server.INFO_SERVICE_HOSTNAME,
+                                 info_server.INFO_SERVICE_PORT,
+                                 self.hostname,
+                                 Task.TASK_PREFIX,
+                                 self.usage_report_timeout)
+
+        os.system('echo "{}" > {} && chmod +x {}'.format(script_content, script_name, script_name))
+        
+        lib_dir = os.path.dirname(os.path.realpath(__file__))
+        host_info_service_path = lib_dir + '/host_info_service.py'
+        common_path = lib_dir + '/common.py'
+        os.system("cp {} {} .".format(host_info_service_path, common_path))
+
+        try:
+            command = ["qsub", "-q", str(self.hostname), "-cwd", script_name]
+            subprocess.run(command)
+        except Exception as e:
+            logging.error("Failed to submit host info service job: {}".format(e))
+            return None
 
     def do_prereq(self):
         if self.prereq == None:
@@ -80,8 +117,9 @@ class Host():
     def qsub_exec(self, task):
         out = None
         try:
-            command = ["qsub", "-q", str(self.hostname), "-cwd", task.get_command()]
-            out = subprocess.check_output(command)
+            script_name = self.create_script(task)
+            command = ["qsub", "-q", str(self.hostname), "-cwd", script_name]
+            out = subprocess.check_output(command).decode('utf-8')
         except Exception as e:
             logging.error("Failed to submit job: {}".format(e))
             return None
@@ -89,20 +127,25 @@ class Host():
         # Your job 994012 ("run.sh") has been submitted
         tokens = out.split(" ")
         task.set_qsub_id(tokens[2])
+    
+    def create_script(self, task):
+        """create a script where to write command so we can identify
+        it later with ps - required to see if task finished"""
+        script_name = '_'.join([self.safe_hostname, 'task', task.id]).replace(' ', '')
+
+        """write the full command in the script and make it exec"""
+        full_cmd = ' '.join([task.get_command(), task.get_args()])
+
+        script_content = '#!/bin/sh\n' + \
+                         '{}\n'.format(full_cmd)
+
+        os.system('echo "{}" > {} && chmod +x {}'.format(script_content, script_name, script_name))
+        
+        return script_name
 
     def local_exec(self, task):
         try:
-            """create a script where to write command so we can identify
-            it later with ps - required to see if task finished"""
-            script_name = '_'.join([self.hostname, 'task', task.id]).replace(' ', '')
-
-            """write the full command in the script and make it exec"""
-            full_cmd = ' '.join([task.get_command(), task.get_args()])
-
-
-            os.system('echo -e "#!/bin/sh\n{}" > {} && chmod +x {}'.format(full_cmd,
-                                                                           script_name,
-                                                                           script_name))
+            script_name = self.create_script(task)
             task.set_background_thread(BackgroundThread(script_name))
 
         except Exception as e:

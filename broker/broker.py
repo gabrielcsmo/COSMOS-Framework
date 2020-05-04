@@ -71,6 +71,8 @@ class Broker():
         os.system("cp -rf " + task.get_rootfs() + " " + task.task_folder)
         os.chdir(task.task_folder)
 
+        task.add_cmd_prefix()
+
     def copy_back_in_rootfs(self):
         os.chdir(self.workspace)
         task_folder = "task_" + str(self.job_num)
