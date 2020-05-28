@@ -2,8 +2,9 @@ from threading import Thread, Event, Lock
 import socket, select, sys
 from time import sleep
 import logging
-import json
+import json, struct
 from lib.common import InfoKeys
+from lib.custom_loggers import perf_logger
 
 INFO_SERVICE_HOSTNAME = socket.gethostname()
 INFO_SERVICE_PORT = 28972
@@ -33,6 +34,7 @@ class Connection(object):
         self.usage_lock.acquire()
         self.usage = stats
         self.usage_lock.release()
+        perf_logger.info(json.dumps({'host': self.hostname, 'stats': stats}))
         
     def local_update_usage(self, task):
         self.usage_lock.acquire()
@@ -96,11 +98,13 @@ class SystemInfoServer(Thread):
         if received is None:
             return
 
-        if conn.recv_size is None:
-            conn.recv_size = received[0]
-            conn.receive = received[1:].decode()
+        if conn.recv_size is None and len(received) >= 4:
+            conn.recv_size = struct.unpack("I", received[:4])[0]
+            conn.receive = received[4:]
         else:
-            conn.receive += received.decode()
+            if conn.receive is None:
+                conn.receive = b""
+            conn.receive += received
         
         if len(conn.receive) == conn.recv_size:
             # first message received tells us which host is associated with the conenction

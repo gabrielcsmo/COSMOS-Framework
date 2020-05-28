@@ -1,9 +1,6 @@
 import psutil as ps
-import socket
-import argparse
-import select
-import os
-import json
+import socket, select
+import argparse, os, json, struct
 from common import InfoKeys
 
 parser = argparse.ArgumentParser()
@@ -76,7 +73,7 @@ class SystemInfoService(object):
         return {**system_load, InfoKeys.PER_TASK_USAGE: per_task_usage}
 
 def pack_message(message):
-    return bytes([len(message)]) + message.encode()
+    return struct.pack("I", len(message)) + message.encode()
 
 def send_message(message, server):
     msg_bytes = pack_message(json.dumps(message))
