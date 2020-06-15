@@ -220,7 +220,6 @@ class LocalBroker():
         for host in self.get_available_hosts():
             usage = self.sys_info.get_usage(host.hostname)
             score = (100 - usage[InfoKeys.SYSTEM_CPU]) * task.cpu_weight + (100 - usage[InfoKeys.SYSTEM_MEMORY]) * task.memory_weight
-            print(f"{host.hostname}: {usage[InfoKeys.SYSTEM_CPU]} | {usage[InfoKeys.SYSTEM_MEMORY]} => {score}")
             if best_machine is None or score > best_score:
                 best_machine = host
                 best_score = score
