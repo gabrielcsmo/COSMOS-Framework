@@ -159,6 +159,7 @@ class Host():
         else:
             logging.error("Unknown host type: {}".format(self.type))
             sys.exit(1)
+        task.mark_start_time()
 
     def send_task(self, task):
         """
@@ -175,7 +176,7 @@ class Host():
         self.exec_task(task)
 
         self.running_tasks[task.get_id()] = task
-        logging.info('\tTask: {0} is running now running\n'.format(task.get_id()))
+        logging.info('\tTask: {0} is now running\n'.format(task.get_id()))
 
     def tasks_join(self):
         for task in self.running_tasks:
@@ -187,8 +188,9 @@ class Host():
         This should be called when a process joins
         '''
         self.used_cpus -= 1
-        self.load -= task['length']
-        #self.running_tasks.remove(task)
+        self.load -= task.length
+        del self.running_tasks[task.get_id()]
+        # self.running_tasks.remove(task)
 
     def to_string(self):
         res = ""
@@ -205,3 +207,6 @@ class Host():
 		"""
         ret = float(self.load + task.get_length()) / float(self.processing_power)
         return ret
+
+    def is_full(self):
+        return self.used_cpus >= self.cpus

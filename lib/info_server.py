@@ -34,7 +34,7 @@ class Connection(object):
         self.usage_lock.acquire()
         self.usage = stats
         self.usage_lock.release()
-        perf_logger.info(json.dumps({'host': self.hostname, 'stats': stats}))
+        perf_logger.info(json.dumps({self.hostname: stats}))
         
     def local_update_usage(self, task):
         self.usage_lock.acquire()
@@ -50,6 +50,7 @@ class SystemInfoServer(Thread):
         self.start()
         self.active_connections = {}
         self.host_to_connection_map = {}
+        self.task_times = {}
     
     def get_usage(self, hostname):
         while hostname not in self.host_to_connection_map:
@@ -141,3 +142,17 @@ class SystemInfoServer(Thread):
                 conn.conn_socket.close()
             self.epoll.close()
             self.server_socket.close()
+    
+    def save_task_time(self, task):
+        if task.elapsed_time is None:
+            return
+        if task.name not in self.task_times:
+            self.task_times[task.name] = []
+
+        self.task_times[task.name].append(task.elapsed_time)
+    
+    def get_task_time_estimate(self, task_name):
+        if task_name not in self.task_times:
+            return None
+        estimates = self.task_times[task_name]
+        return sum(estimates) / len(estimates)
