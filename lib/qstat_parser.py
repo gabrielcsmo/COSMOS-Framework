@@ -81,6 +81,9 @@ def qstat_parse(queue):
                 current_machine[USED_MEMORY_KEY] /= current_machine[TOTAL_MEMORY_KEY]
                 del current_machine[TOTAL_MEMORY_KEY]
 
+    if current_machine is not None:
+        for k in WANTED_STATS:
+            stats[k] += current_machine[k]
     
     if n_machines < 1:
         log("No machines found in queue {!r}".format(queue if queue is not None else "all queues"))

@@ -130,7 +130,6 @@ class LocalBroker():
                     if not task.is_finished():
                         exit = False
                     else:
-                        self.sys_info.save_task_time(task)
                         self.optimizer.post_optimize_task(task)
                 sleep(self.timeout)
     
@@ -149,7 +148,8 @@ class LocalBroker():
                         try:
                             started_tasks.remove((task, host))
                             host.task_completed(task)
-                            self.sys_info.save_task_time(task)
+                            if self.sys_info is not None:
+                                self.sys_info.save_task_time(task)
                         except ValueError:
                             logging.error("[MonitorStartedTasks] Could not remove task '{}' from host '{}'".format(task.name, host.hostname))
                 sleep(self.timeout)
