@@ -10,10 +10,15 @@ import sys
 import lib.info_server as info_server
 from lib.qstat_parser import qstat_parse
 from lib.common import InfoKeys
+from threading import Thread, Event
 
 signal.signal(signal.SIGINT, signal_handler)
 
 class LocalBroker():
+    # Any scheduling method that uses the monitoring service must be added here
+    # You can also use this to monitor a scheduling method using the monitoring servicee, results are in performance.log
+    SCHEDULE_USING_SYS_INFO = ["short-tasks", "mixed-tasks"]
+
     def __init__(self, config, optimizer):
         logging.info("Creating Local Broker Object")
         self.config = config
@@ -28,7 +33,8 @@ class LocalBroker():
         self.job_num = 0
         # create hosts
         self.init_workspace()
-        if self.scheduling_method == 'short-tasks':
+        info_server.SystemInfoServer.INFO_SERVICE_PORT = int(self.config["info_server_port"])
+        if self.scheduling_method in LocalBroker.SCHEDULE_USING_SYS_INFO:
             self.sys_info = info_server.SystemInfoServer()
         else:
             self.sys_info = None
@@ -127,6 +133,46 @@ class LocalBroker():
                     else:
                         self.optimizer.post_optimize_task(task)
                 sleep(self.timeout)
+    
+    def monitor_started_tasks(self):
+        while not self.done.is_set() or len(self.started_tasks) > 0:
+            for task, host in self.started_tasks:
+                task.mark_if_finished()
+                if task.finished:
+                    try:
+                        self.started_tasks.remove((task, host))
+                        host.task_completed(task)
+                        if self.sys_info is not None:
+                            self.sys_info.save_task_time(task)
+                    except ValueError:
+                        logging.error("[MonitorStartedTasks] Could not remove task '{}' from host '{}'".format(task.name, host.hostname))
+            sleep(self.timeout)
+
+    # this and schedule_tasks do the same thing, call the scheduling method for each task
+    # what this function does on top of that is limit how many tasks are scheduled by the number of CPUS defined 
+    # in the configuration of each machine
+    def limited_schedule_tasks(self, tasks=[]):
+        self.started_tasks = []
+        self.done = Event()
+
+        started_tasks_monitor = Thread(target=LocalBroker.monitor_started_tasks, args=[self])
+        started_tasks_monitor.start()
+
+        while len(tasks) > 0:
+            task = tasks.pop(0)
+            if task.is_ready(tasks):
+                while not any(self.get_available_hosts()):
+                    sleep(self.timeout)
+                host = self.schedule_task(task)
+                self.started_tasks.append((task, host))
+        
+        self.done.set()
+        started_tasks_monitor.join()
+                    
+    def get_available_hosts(self):
+        for host in self.machines:
+            if not host.is_full():
+                yield host
 
     def schedule_task(self, task):
         logging.info('\nScheduling task ' + task.to_string())
@@ -136,26 +182,29 @@ class LocalBroker():
         #call the preoptimize
         self.optimizer.pre_optimize_task(task)
 
-        # now we are into the task folder
-        if self.scheduling_method == 'min-min':
-            self.min_min_schedule(task)
-        elif self.scheduling_method == 'work-queue':
-            self.work_queue_schedule(task)
-        elif self.scheduling_method == 'max-min':
-            self.max_min_schedule(task)
-        elif self.scheduling_method == 'long-tasks':
-            self.long_tasks_load_schedule(task)
-        elif self.scheduling_method == 'short-tasks':
-            self.short_task_load_schedule(task)
-        else:
-            self.priority_schedule(task)
-
         # mark task as not ready because you already scheduled it
         task.scheduled = True
+
+        # now we are into the task folder
+        if self.scheduling_method == 'min-min':
+            return self.min_min_schedule(task)
+        elif self.scheduling_method == 'work-queue':
+            return self.work_queue_schedule(task)
+        elif self.scheduling_method == 'max-min':
+            return self.max_min_schedule(task)
+        elif self.scheduling_method == 'long-tasks':
+            return self.long_tasks_load_schedule(task)
+        elif self.scheduling_method == 'short-tasks':
+            return self.short_task_load_schedule(task)
+        elif self.scheduling_method == 'mixed-tasks':
+            return self.mixed_tasks_schedule(task)
+        else:
+            return self.priority_schedule(task)
 
     def min_min_schedule(self, task):
         mach_id = self.get_fastest_min_host(task)
         self.machines[mach_id].send_task(task)
+        return self.machines[mach_id]
 
     def max_min_schedule(self, task):
         pass
@@ -169,7 +218,7 @@ class LocalBroker():
     def short_task_load_schedule(self, task):
         best_machine, best_score = None, None
         current_usage = {}
-        for host in self.machines:
+        for host in self.get_available_hosts():
             usage = self.sys_info.get_usage(host.hostname)
             score = (100 - usage[InfoKeys.SYSTEM_CPU]) * task.cpu_weight + (100 - usage[InfoKeys.SYSTEM_MEMORY]) * task.memory_weight
             if best_machine is None or score > best_score:
@@ -179,15 +228,16 @@ class LocalBroker():
         # we receive usage stats periodically, so we add the estimated task length to the current score
         # so that if another task is scheduled before the usage is updated we won't end up
         # scheduling on the same best_machine (this is usually the case for the first scheduled tasks)
-        self.sys_info.local_update_usage(host.hostname, task)
-        
+        self.sys_info.local_update_usage(best_machine.hostname, task)
+
         best_machine.send_task(task)
+        return best_machine
     
     # uses 'qstat' to find information about the system
     # because qstat is not updated often, this policy yields best results with long tasks
     def long_tasks_load_schedule(self, task):
         best_machine = None
-        all_machines_usage = [(host, qstat_parse(host.hostname)) for host in self.machines]
+        all_machines_usage = [(host, qstat_parse(host.hostname)) for host in self.get_available_hosts()]
         all_machines_usage = list(filter(lambda elem: elem[1] is not None, all_machines_usage))
 
         if len(all_machines_usage) == 0:
@@ -196,15 +246,22 @@ class LocalBroker():
         elif len(all_machines_usage) == 1:
             best_machine = all_machines_usage[0][0]
         else:
-            max_mem_free = max(elem[1]['mem_free'] for elem in all_machines_usage)
-            min_mem_free = min(elem[1]['mem_free'] for elem in all_machines_usage)
-            diff_mem_free = max_mem_free - min_mem_free
             best_score = None
             for host, usage in all_machines_usage:
-                normalized_mem_free = (usage['mem_free'] - min_mem_free) / diff_mem_free
-                score = (1 - usage['np_load_avg'] * task.cpu_weight) + normalized_mem_free * task.memory_weight
+                score = (100 - usage['np_load_avg']) * task.cpu_weight + (100 - usage['mem_used']) * task.memory_weight
                 if best_machine is None or score > best_score:
                     best_machine, best_score = host, score
         
         logging.info("[long-tasks policy] Schedule on " + best_machine.hostname)
         best_machine.send_task(task)
+        
+        return best_machine
+    
+    def mixed_tasks_schedule(self, task):
+        time_estimate = self.sys_info.get_task_time_estimate(task.name)
+        # tasks that are 5 minutes or longer can be scheduled using qstat information
+        if time_estimate is not None and time_estimate > 5*60:
+            print(f"Long task detected: {task.name}")
+            return self.long_tasks_load_schedule(task)
+        else:
+            return self.short_task_load_schedule(task)

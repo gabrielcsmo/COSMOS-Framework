@@ -1,12 +1,11 @@
 from threading import Thread, Event, Lock
 import socket, select, sys
 from time import sleep
-import logging
-import json
+import logging, json, struct, time
 from lib.common import InfoKeys
+from lib.custom_loggers import perf_logger
 
 INFO_SERVICE_HOSTNAME = socket.gethostname()
-INFO_SERVICE_PORT = 28972
 
 class Connection(object):
     def __init__(self, conn_socket):
@@ -33,7 +32,8 @@ class Connection(object):
         self.usage_lock.acquire()
         self.usage = stats
         self.usage_lock.release()
-        
+        perf_logger.info(json.dumps({self.hostname: {**stats, InfoKeys.TIMESTAMP: time.time()}}))
+
     def local_update_usage(self, task):
         self.usage_lock.acquire()
         self.usage[InfoKeys.SYSTEM_CPU] += (task.length / 10) * task.cpu_weight
@@ -41,6 +41,8 @@ class Connection(object):
         self.usage_lock.release()
 
 class SystemInfoServer(Thread):
+    INFO_SERVICE_PORT = None
+    
     stop_server = Event()
 
     def __init__(self):
@@ -48,6 +50,7 @@ class SystemInfoServer(Thread):
         self.start()
         self.active_connections = {}
         self.host_to_connection_map = {}
+        self.task_times = {}
     
     def get_usage(self, hostname):
         while hostname not in self.host_to_connection_map:
@@ -72,11 +75,11 @@ class SystemInfoServer(Thread):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.setblocking(False)
         try:
-            s.bind((INFO_SERVICE_HOSTNAME, INFO_SERVICE_PORT))
+            s.bind((INFO_SERVICE_HOSTNAME, SystemInfoServer.INFO_SERVICE_PORT))
         except socket.error as msg:
             logging.error("[SystemInfoServer] Couldn't bind server socket. Error: {}".format(msg))
             exit(1)
-        print("[SystemInfoServer] Listening on {}:{}".format(INFO_SERVICE_HOSTNAME, INFO_SERVICE_PORT))
+        print("[SystemInfoServer] Listening on {}:{}".format(INFO_SERVICE_HOSTNAME, SystemInfoServer.INFO_SERVICE_PORT))
         s.listen(1)
         return s
     
@@ -96,11 +99,13 @@ class SystemInfoServer(Thread):
         if received is None:
             return
 
-        if conn.recv_size is None:
-            conn.recv_size = received[0]
-            conn.receive = received[1:].decode()
+        if conn.recv_size is None and len(received) >= 4:
+            conn.recv_size = struct.unpack("I", received[:4])[0]
+            conn.receive = received[4:]
         else:
-            conn.receive += received.decode()
+            if conn.receive is None:
+                conn.receive = b""
+            conn.receive += received
         
         if len(conn.receive) == conn.recv_size:
             # first message received tells us which host is associated with the conenction
@@ -137,3 +142,17 @@ class SystemInfoServer(Thread):
                 conn.conn_socket.close()
             self.epoll.close()
             self.server_socket.close()
+    
+    def save_task_time(self, task):
+        if task.elapsed_time is None:
+            return
+        if task.name not in self.task_times:
+            self.task_times[task.name] = []
+
+        self.task_times[task.name].append(task.elapsed_time)
+    
+    def get_task_time_estimate(self, task_name):
+        if task_name not in self.task_times:
+            return None
+        estimates = self.task_times[task_name]
+        return sum(estimates) / len(estimates)

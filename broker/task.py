@@ -1,6 +1,7 @@
 import subprocess
 import sys, os
 import logging
+from timeit import default_timer as timer
 
 class Task():
     TASK_PREFIX = "cosmos_task_"
@@ -24,6 +25,7 @@ class Task():
         self.ws_task_id = task_ws_id
         self.priority = priority
         self.command = command
+        self.name = command if command[:2] != "./" else command[2:]
         self.args = args
         self.length = length
         self.scheduled = False
@@ -43,6 +45,9 @@ class Task():
         self.background_thread = None
         # local or qsub
         self.task_type = None
+        self._start_time = None
+        self._end_time = None
+        self.elapsed_time = None
 
     def __str__(self):
         return self.to_string()
@@ -63,7 +68,7 @@ class Task():
         if self.command[:2] == './':
             new_command = './' + Task.TASK_PREFIX + self.command[2:]
         else:
-            new_command = './' + Task.TASK_PREFIX + self.command[2:]
+            new_command = './' + Task.TASK_PREFIX + self.command
         os.system("mv {} {}".format(self.command, new_command))
         self.command = new_command
 
@@ -108,6 +113,10 @@ class Task():
             self.mark_if_finished_local()
         elif self.task_type == 'qsub':
             self.mark_if_finished_qsub()
+        
+        if self.finished and self._end_time is None:
+            self._end_time = timer()
+            self.elapsed_time = self._end_time - self._start_time
 
     def mark_if_finished_local(self):
         if not self.background_thread:
@@ -159,7 +168,9 @@ class Task():
 
     def already_scheduled(self):
         return self.scheduled
-
+    
+    def mark_start_time(self):
+        self._start_time = timer()
 
 
 def create_tasks(tdic):
