@@ -33,6 +33,7 @@ class LocalBroker():
         self.job_num = 0
         # create hosts
         self.init_workspace()
+        info_server.SystemInfoServer.INFO_SERVICE_PORT = int(self.config["info_server_port"])
         if self.scheduling_method in LocalBroker.SCHEDULE_USING_SYS_INFO:
             self.sys_info = info_server.SystemInfoServer()
         else:
@@ -133,28 +134,28 @@ class LocalBroker():
                         self.optimizer.post_optimize_task(task)
                 sleep(self.timeout)
     
+    def monitor_started_tasks(self):
+        while not self.done.is_set() or len(self.started_tasks) > 0:
+            for task, host in self.started_tasks:
+                task.mark_if_finished()
+                if task.finished:
+                    try:
+                        self.started_tasks.remove((task, host))
+                        host.task_completed(task)
+                        if self.sys_info is not None:
+                            self.sys_info.save_task_time(task)
+                    except ValueError:
+                        logging.error("[MonitorStartedTasks] Could not remove task '{}' from host '{}'".format(task.name, host.hostname))
+            sleep(self.timeout)
+
     # this and schedule_tasks do the same thing, call the scheduling method for each task
     # what this function does on top of that is limit how many tasks are scheduled by the number of CPUS defined 
     # in the configuration of each machine
     def limited_schedule_tasks(self, tasks=[]):
-        started_tasks = []
-        done = Event()
-        def monitor_started_tasks():
-            nonlocal started_tasks
-            while not done.is_set() or len(started_tasks) > 0:
-                for task, host in started_tasks:
-                    task.mark_if_finished()
-                    if task.finished:
-                        try:
-                            started_tasks.remove((task, host))
-                            host.task_completed(task)
-                            if self.sys_info is not None:
-                                self.sys_info.save_task_time(task)
-                        except ValueError:
-                            logging.error("[MonitorStartedTasks] Could not remove task '{}' from host '{}'".format(task.name, host.hostname))
-                sleep(self.timeout)
+        self.started_tasks = []
+        self.done = Event()
 
-        started_tasks_monitor = Thread(target=monitor_started_tasks)
+        started_tasks_monitor = Thread(target=LocalBroker.monitor_started_tasks, args=[self])
         started_tasks_monitor.start()
 
         while len(tasks) > 0:
@@ -163,9 +164,9 @@ class LocalBroker():
                 while not any(self.get_available_hosts()):
                     sleep(self.timeout)
                 host = self.schedule_task(task)
-                started_tasks.append((task, host))
+                self.started_tasks.append((task, host))
         
-        done.set()
+        self.done.set()
         started_tasks_monitor.join()
                     
     def get_available_hosts(self):

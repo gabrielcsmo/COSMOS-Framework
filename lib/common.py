@@ -10,3 +10,4 @@ class InfoKeys:
     TASK_MEM_INTENSIVE = "m_intensive"
     TASK_COUNT = "count"
     HOSTNAME = "hostname"
+    TIMESTAMP = "timestamp"

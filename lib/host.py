@@ -1,11 +1,8 @@
-import logging
-import sys
-import os
-import subprocess
+import logging, json, sys, os, subprocess, threading
 from multiprocessing import Process
-import threading
 import lib.info_server as info_server
 from broker.task import Task
+from lib.custom_loggers import perf_logger
 
 def exec_func(**kwargs):
     logging.info("Executing task: " + str(kwargs))
@@ -84,7 +81,7 @@ class Host():
                          '--report_timeout {} ' \
                          .format(self.python_exec,
                                  info_server.INFO_SERVICE_HOSTNAME,
-                                 info_server.INFO_SERVICE_PORT,
+                                 info_server.SystemInfoServer.INFO_SERVICE_PORT,
                                  self.hostname,
                                  Task.TASK_PREFIX,
                                  self.usage_report_timeout)

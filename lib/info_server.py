@@ -1,13 +1,11 @@
 from threading import Thread, Event, Lock
 import socket, select, sys
 from time import sleep
-import logging
-import json, struct
+import logging, json, struct, time
 from lib.common import InfoKeys
 from lib.custom_loggers import perf_logger
 
 INFO_SERVICE_HOSTNAME = socket.gethostname()
-INFO_SERVICE_PORT = 28972
 
 class Connection(object):
     def __init__(self, conn_socket):
@@ -34,8 +32,8 @@ class Connection(object):
         self.usage_lock.acquire()
         self.usage = stats
         self.usage_lock.release()
-        perf_logger.info(json.dumps({self.hostname: stats}))
-        
+        perf_logger.info(json.dumps({self.hostname: {**stats, InfoKeys.TIMESTAMP: time.time()}}))
+
     def local_update_usage(self, task):
         self.usage_lock.acquire()
         self.usage[InfoKeys.SYSTEM_CPU] += (task.length / 10) * task.cpu_weight
@@ -43,6 +41,8 @@ class Connection(object):
         self.usage_lock.release()
 
 class SystemInfoServer(Thread):
+    INFO_SERVICE_PORT = None
+    
     stop_server = Event()
 
     def __init__(self):
@@ -75,11 +75,11 @@ class SystemInfoServer(Thread):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.setblocking(False)
         try:
-            s.bind((INFO_SERVICE_HOSTNAME, INFO_SERVICE_PORT))
+            s.bind((INFO_SERVICE_HOSTNAME, SystemInfoServer.INFO_SERVICE_PORT))
         except socket.error as msg:
             logging.error("[SystemInfoServer] Couldn't bind server socket. Error: {}".format(msg))
             exit(1)
-        print("[SystemInfoServer] Listening on {}:{}".format(INFO_SERVICE_HOSTNAME, INFO_SERVICE_PORT))
+        print("[SystemInfoServer] Listening on {}:{}".format(INFO_SERVICE_HOSTNAME, SystemInfoServer.INFO_SERVICE_PORT))
         s.listen(1)
         return s
     
