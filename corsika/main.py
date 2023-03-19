@@ -4,7 +4,7 @@ import sys
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print sys.argv[0], "<folder>"
+        print(sys.argv[0], "<folder>")
         sys.exit(1)
 
     e = Experiment(sys.argv[1])

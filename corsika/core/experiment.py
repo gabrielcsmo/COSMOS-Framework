@@ -52,9 +52,9 @@ class Experiment():
         """
         filename = self.files["list"]
         if not filename:
-            print ".list file is missing. Exiting  now."
+            print(".list file is missing. Exiting  now.")
             sys.exit(1)
-        with open(filename, "ro") as f:
+        with open(filename) as f:
             lines = f.readlines()
             for line in lines:
                 tokens = line.split('=')
@@ -68,8 +68,8 @@ class Experiment():
 
     def exit_if_missing_tokens(self, tokens, expected_tokens):
         if len(tokens) != expected_tokens:
-            print "Got {} tokens. Expected {}. Exiting now."\
-                .format(len(tokens), expected_tokens)
+            print("Got {} tokens. Expected {}. Exiting now."\
+                .format(len(tokens), expected_tokens))
             sys.exit(1)
 
     def parse_inp_line(self, string):
@@ -101,7 +101,7 @@ class Experiment():
         elif key == "EXIT":
             self.inp_dict_params[key] = True
         else:
-            print "No Case for {}".format(key)
+            print ("No Case for {}".format(key))
 
     def read_inp_file(self):
         """
@@ -110,9 +110,9 @@ class Experiment():
         """
         filename = self.files["inp"]
         if not filename:
-            print ".inp file is missing. Exiting now."
+            print (".inp file is missing. Exiting now.")
             sys.exit(1)
-        with open(filename, "ro") as f:
+        with open(filename) as f:
             lines = f.readlines()
             for line in lines:
                 line = line.strip().replace("\t", " ")
@@ -127,9 +127,9 @@ class Experiment():
         """
         filename = self.files["reas"]
         if not filename:
-            print ".reas file is missing. Exiting now."
+            print (".reas file is missing. Exiting now.")
             sys.exit(1)
-        with open(filename, "ro") as f:
+        with open(filename) as f:
             lines = f.readlines()
             for line in lines:
                 """ignore empty lines and comments"""
@@ -191,7 +191,7 @@ class Experiment():
         self.par_coord = [x, y, z]
 
     def mark_relevant_antennas(self):
-        print self.steps
+        print (self.steps)
         """initial radius"""
         a1 = random.choice(self.antennas)
         a2 = random.choice(self.antennas)
@@ -220,7 +220,7 @@ class Experiment():
         r_start = 300
         r_step = 0
 
-        for i in xrange(len(self.par_dir_points)):
+        for i in range(len(self.par_dir_points)):
             """get the point that corresponds to step i
             computed as Point0 + i * dirVect
             """
@@ -246,7 +246,7 @@ class Experiment():
         self.steps = int(np.ceil(np.abs((z - zmin)/dz)))
         self.par_dir_points = [self.par_coord]
         end_p = self.par_dir_points[-1]
-        for i in xrange(self.steps):
+        for i in range(self.steps):
             P = [x + i * dx, y + i * dy, z + i * dz]
             self.par_dir_points.append(P)
 
@@ -278,6 +278,6 @@ class Experiment():
             ax.set_zlabel('Z')
             plt.show()
         except Exception as e:
-            print "Failed to plot Antennas"
-            print e
+            print ("Failed to plot Antennas")
+            print (e)
             sys.exit(1)
