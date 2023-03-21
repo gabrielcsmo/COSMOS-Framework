@@ -1,5 +1,5 @@
 from os import listdir
-from os.path import isfile, join, abspath
+from os.path import isfile, join, abspath, expanduser
 import sys
 from core.antenna import Antenna
 import re
@@ -8,8 +8,11 @@ import random
 
 class Experiment():
 
-    def __init__(self, input_folder):
-        self.folder = input_folder
+    def __init__(self, args):
+        self.args = args
+        self.folder = expanduser(args.input)
+        self.verbose = args.verbose
+
         self.files = {"reas" : None, "list" : None, "inp" : None}
         self.reas_dict_params = {}
         self.inp_dict_params = {}
@@ -18,6 +21,7 @@ class Experiment():
         self.antennas = []
         self.par_dir_vec = None
         self.par_coord = None
+        self.max_distance = 100
 
         # get absolute path for experiment config files
         self.find_input_files()
@@ -181,17 +185,18 @@ class Experiment():
                             np.cos(theta) * np.sin(phi),
                             - np.sin(theta)]
         self.par_dir_vec = [dx/np.abs(dz), dy/np.abs(dz), dz / np.abs(dz)]
-        #print "Direction vector: {}".format(self.par_dir_vec)
+        if self.args.verbose:
+            print(f"Direction vector: {self.par_dir_vec}")
 
     def __set_par_coordinates(self):
         """Add particle initial position"""
         x = round(self.reas_dict_params["CoreCoordinateWest"] / 100 , 1)
         y = round(self.reas_dict_params["CoreCoordinateNorth"] / 100 , 1)
         z = round(self.reas_dict_params["CoreCoordinateVertical"] / 100 , 1)
+        self.max_distance = round(self.reas_dict_params["DistanceOfShowerMaximum"] / 100 , 1)
         self.par_coord = [x, y, z]
 
     def mark_relevant_antennas(self):
-        print (self.steps)
         """initial radius"""
         a1 = random.choice(self.antennas)
         a2 = random.choice(self.antennas)
@@ -238,17 +243,21 @@ class Experiment():
         """
         [x, y, z] = self.par_coord
         [dx, dy, dz] = self.par_dir_vec
-        zmin = self.antennas[0].get_possition()[2] # get first antenna z
-        for antenna in self.antennas[1:]:
-            [xp, yp, zp] = antenna.get_possition()
-            if zp < zmin:
-                zp = zmin
-        self.steps = int(np.ceil(np.abs((z - zmin)/dz)))
+        dir_vect_magnitude = np.linalg.norm(self.par_dir_vec)
+        if self.args.verbose:
+            print(f"Direction vector magnitude: {dir_vect_magnitude}")
+
+        self.steps = int(self.max_distance/dir_vect_magnitude) # int(np.ceil(np.abs((z - zmin)/dz)))
         self.par_dir_points = [self.par_coord]
         end_p = self.par_dir_points[-1]
         for i in range(self.steps):
             P = [x + i * dx, y + i * dy, z + i * dz]
             self.par_dir_points.append(P)
+        if self.verbose:
+            print(f"Primary particle:\n\tdiscretization steps = {self.steps}")
+            print(f"\tstart position {self.par_dir_points[0]}")
+            print(f"\tend position   {self.par_dir_points[-1]}")
+
 
     def plot(self):
         try:
@@ -257,12 +266,18 @@ class Experiment():
             import numpy as np
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
+            if(self.verbose):
+                print("Antennas list:")
             for antenna in self.antennas:
                 [x, y, z] = antenna.get_possition()
                 colour = 'r'
                 if antenna.is_relevant():
                     colour = 'g'
                 ax.scatter(x, y, z, c=colour, marker='o')
+
+                if (self.verbose):
+                    print("\t" + str(antenna))
+
             """start coordinates"""
             [xs, ys, zs] = self.par_coord
             """end coordinats"""

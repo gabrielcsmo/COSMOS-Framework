@@ -49,7 +49,6 @@ class Antenna():
         return sqrt((self.x - x) * (self.x - x) +
                     (self.y - y) * (self.y - y))
 
-    def to_string(self):
-        resstr = 'AntennaPosition = ' + str(self.x) +\
-                 ' ' + str(self.y) + ' ' + str(self.z) + ' ' + self.name + '\n'
+    def __str__(self):
+        resstr = "%9s : (%8.1f, %8.1f, %8.1f) - %s" % (self.name, self.x, self.y, self.z, self.relevant)
         return resstr
