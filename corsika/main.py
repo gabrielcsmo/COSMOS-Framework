@@ -13,4 +13,6 @@ if __name__ == '__main__':
 
     e = Experiment(args)
     e.mark_relevant_antennas()
-    e.plot()
+    #e.plot()
+    #e.plot_maya()
+    e.plot_vispy()

@@ -296,3 +296,50 @@ class Experiment():
             print ("Failed to plot Antennas")
             print (e)
             sys.exit(1)
+
+    def plot_maya(self):
+        try:
+            from core.render import add_sphere, show
+            RED = (1, 0, 0)
+            GREEN = (0, 1, 0)
+            for antenna in self.antennas:
+                [x, y, z] = antenna.get_possition()
+                colour = RED
+                if antenna.is_relevant():
+                    colour = GREEN
+                if (self.verbose):
+                    print("\t" + str(antenna))
+
+                add_sphere(x, y , z ,colour)
+            for x,y,z in self.par_dir_points:
+                add_sphere(x, y , z , (0,0,1))
+
+            show()
+        except:
+            print("Cannot plot using MayaVI")        
+
+    def plot_vispy(self):
+            from vispy import scene
+            from vispy.visuals.transforms import STTransform
+
+            canvas = scene.SceneCanvas(keys='interactive', bgcolor='white',
+                                       size=(800, 600), show=True)
+            view = canvas.central_widget.add_view()
+            view.camera = 'arcball'
+
+            for antenna in self.antennas:
+                pos=antenna.get_possition()
+                _s = scene.visuals.Sphere(color ='red',
+                                     radius=25, method='latitude', parent=view.scene,
+                               )
+                _s.transform = STTransform(translate=pos)
+
+            for pos in self.par_dir_points:
+                
+                _s = scene.visuals.Sphere(color ='blue',
+                                     radius=25, method='latitude', parent=view.scene,
+                               edge_color='black')
+                _s.transform = STTransform(translate=pos)
+
+            #view.camera.set_range(x=[-3, 3])
+            canvas.app.run()
