@@ -34,6 +34,12 @@ class Experiment():
         self.__set_par_coordinates()
         self.__set_direction_vector()
         self.__set_direction_points()
+        self.xmin = 100000000.0
+        self.xmax = -100000000.0
+        self.ymin = 100000000.0
+        self.ymax = -100000000.0
+        self.zmin = 100000000.0
+        self.zmax = -100000000.0
 
     def find_input_files(self):
         self.folder = abspath(self.folder)
@@ -196,6 +202,24 @@ class Experiment():
         self.max_distance = round(self.reas_dict_params["DistanceOfShowerMaximum"] / 100 , 1)
         self.par_coord = [x, y, z]
 
+    def get_sim_box_limits(self):
+        for antenna in self.antennas:
+                [x, y, z] = antenna.get_possition()
+                if x < self.xmin:
+                    self.xmin = x
+                elif x > self.xmax:
+                    self.xmax = x
+
+                if y < self.ymin:
+                    self.ymin = y
+                elif y > self.ymax:
+                    self.ymax = y
+
+                if z < self.zmin:
+                    self.zmin = z
+                elif z > self.zmax:
+                    self.zmax = z
+
     def mark_relevant_antennas(self):
         """initial radius"""
         a1 = random.choice(self.antennas)
@@ -329,17 +353,21 @@ class Experiment():
 
             for antenna in self.antennas:
                 pos=antenna.get_possition()
-                _s = scene.visuals.Sphere(color ='red',
-                                     radius=25, method='latitude', parent=view.scene,
-                               )
+                c = 'red'
+                if antenna.is_relevant():
+                    c = 'green'
+                _s = scene.visuals.Sphere(color=c, radius=35, method='latitude', parent=view.scene)
                 _s.transform = STTransform(translate=pos)
 
             for pos in self.par_dir_points:
                 
                 _s = scene.visuals.Sphere(color ='blue',
-                                     radius=25, method='latitude', parent=view.scene,
-                               edge_color='black')
+                                     radius=10, method='latitude', parent=view.scene)
                 _s.transform = STTransform(translate=pos)
 
-            #view.camera.set_range(x=[-3, 3])
+            self.get_sim_box_limits()
+
+            view.camera.set_range(x=[self.xmin, self.xmax],
+                                  y=[self.ymin, self.ymax],
+                                  z = [self.zmin, self.zmax])
             canvas.app.run()
