@@ -31,8 +31,8 @@ def has_converged(mu, oldmu):
 
 def find_centers(X, K):
     # Initialize to K random centers
-    oldmu = random.sample(X, K)
-    mu = random.sample(X, K)
+    oldmu = random.sample(list(X), K)
+    mu = random.sample(list(X), K)
     while not has_converged(mu, oldmu):
         oldmu = mu
         # Assign all points in X to clusters

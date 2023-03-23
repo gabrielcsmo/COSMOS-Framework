@@ -5,6 +5,13 @@ from core.antenna import Antenna
 import re
 import numpy as np
 import random
+from core.lloyd_kmeans import find_centers, cluster_points
+from core.utils import generate_colors
+
+colors = ['r', 'b', 'g', 'm', 'c', 'y', 'k']
+shapes = ['D', 'p', '*', 'H', '+', 's', 'x']
+avail_colors = len(colors)
+
 
 class Experiment():
 
@@ -40,6 +47,11 @@ class Experiment():
         self.ymax = -100000000.0
         self.zmin = 100000000.0
         self.zmax = -100000000.0
+
+        if args.num_clusters:
+            self.colors = generate_colors(args.num_clusters)
+        else:
+            self.colors = generate_colors(10)
 
     def find_input_files(self):
         self.folder = abspath(self.folder)
@@ -204,7 +216,7 @@ class Experiment():
 
     def get_sim_box_limits(self):
         for antenna in self.antennas:
-                [x, y, z] = antenna.get_possition()
+                [x, y, z] = antenna.get_position()
                 if x < self.xmin:
                     self.xmin = x
                 elif x > self.xmax:
@@ -235,7 +247,7 @@ class Experiment():
             if a1 == a2:
                 continue
             r = a1.distance_to(a2)
-            #print a1.get_possition(), a2.get_possition(), r
+            #print a1.get_position(), a2.get_position(), r
             if r < r_min and r > 1.0:
                 r_min = r
             if r > r_max:
@@ -282,6 +294,47 @@ class Experiment():
             print(f"\tstart position {self.par_dir_points[0]}")
             print(f"\tend position   {self.par_dir_points[-1]}")
 
+    def set_clusters(self, position, cluster_tag):
+        x = int(position[0])
+        y = int(position[1])
+        for a in self.antennas:
+            ax = int(a.x)
+            ay = int(a.y)
+            if x == ax and y == ay:
+                print("set tag %s on antena %s" %(cluster_tag, a))
+                a.set_cluster_tag(cluster_tag)
+                return
+
+    def sort_antennas_by_x_pos(self):
+        self.antennas = sorted(self.antennas, key=lambda a: a.x)
+
+    def plot_antennas(self):
+        import matplotlib.pyplot as pl
+
+        x = []
+        y = []
+        for a in self.antennas:
+            index = a.get_cluster_tag()
+            pl.plot([a.x], [a.y],
+                    color=self.colors[index], marker='o')
+        pl.show()
+
+    def cluster_antennas(self):
+        self.sort_antennas_by_x_pos()
+        points = np.array([a.get_position() for a in self.antennas if a.is_relevant()])
+        centers = find_centers(points, self.args.num_clusters)
+        clusters_dict = cluster_points(points, centers[0])
+        print ("We found the following clusters: ")
+        for key in clusters_dict:
+            print ("Cluster no", key)
+            for val in clusters_dict[key]:
+                self.set_clusters([val[0], val[1]], key)
+        #write_files(sys.argv[2], ant, no_clusters)
+        if self.args.use_vispy:
+            self.plot_vispy(True)
+        else:
+            self.plot_antennas()
+
 
     def plot(self):
         try:
@@ -293,11 +346,11 @@ class Experiment():
             if(self.verbose):
                 print("Antennas list:")
             for antenna in self.antennas:
-                [x, y, z] = antenna.get_possition()
-                colour = 'r'
+                [x, y, z] = antenna.get_position()
+                c = [0.5, 0, 0]
                 if antenna.is_relevant():
-                    colour = 'g'
-                ax.scatter(x, y, z, c=colour, marker='o')
+                    c = [0, 0.7, 0]
+                ax.scatter(x, y, z, color=c, marker='o')
 
                 if (self.verbose):
                     print("\t" + str(antenna))
@@ -327,7 +380,7 @@ class Experiment():
             RED = (1, 0, 0)
             GREEN = (0, 1, 0)
             for antenna in self.antennas:
-                [x, y, z] = antenna.get_possition()
+                [x, y, z] = antenna.get_position()
                 colour = RED
                 if antenna.is_relevant():
                     colour = GREEN
@@ -342,7 +395,7 @@ class Experiment():
         except:
             print("Cannot plot using MayaVI")        
 
-    def plot_vispy(self):
+    def plot_vispy(self, plot_cluster = False):
             from vispy import scene
             from vispy.visuals.transforms import STTransform
 
@@ -352,9 +405,14 @@ class Experiment():
             view.camera = 'arcball'
 
             for antenna in self.antennas:
-                pos=antenna.get_possition()
+                if self.args.only_relevant and not antenna.is_relevant():
+                    continue
+                pos=antenna.get_position()
                 c = 'red'
-                if antenna.is_relevant():
+                if plot_cluster:
+                    index = antenna.get_cluster_tag()
+                    c = self.colors[index]
+                elif antenna.is_relevant():
                     c = 'green'
                 _s = scene.visuals.Sphere(color=c, radius=35, method='latitude', parent=view.scene)
                 _s.transform = STTransform(translate=pos)
