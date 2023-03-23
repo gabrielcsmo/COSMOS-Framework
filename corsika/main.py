@@ -16,7 +16,9 @@ parser.add_argument('-n', '--num-clusters', action = "store", type = int,
 parser.add_argument('--use-vispy', action='store_true',
                     help = "Enable ploting with VisPY")
 parser.add_argument('--only-relevant', action='store_true',
-                    help = "Enable ploting with VisPY")
+                    help = "Cluster/plot only on relevant antennas")
+parser.add_argument('--no-plot', action='store_true',
+                    help = "Disable plotting")
 
 
 if __name__ == '__main__':

@@ -52,3 +52,8 @@ class Antenna():
     def __str__(self):
         resstr = "%9s : (%8.1f, %8.1f, %8.1f) - %s" % (self.name, self.x, self.y, self.z, self.relevant)
         return resstr
+
+    def toString(self):
+        resstr = 'AntennaPosition = ' + str(self.x) +\
+                 ' ' + str(self.y) + ' ' + str(self.z) + ' ' + self.name + '\n'
+        return resstr

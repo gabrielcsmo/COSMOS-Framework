@@ -1,16 +1,12 @@
 from os import listdir
-from os.path import isfile, join, abspath, expanduser
+from os.path import isfile, join, abspath, expanduser, basename
 import sys
 from core.antenna import Antenna
 import re
 import numpy as np
 import random
 from core.lloyd_kmeans import find_centers, cluster_points
-from core.utils import generate_colors
-
-colors = ['r', 'b', 'g', 'm', 'c', 'y', 'k']
-shapes = ['D', 'p', '*', 'H', '+', 's', 'x']
-avail_colors = len(colors)
+from core.utils import generate_colors, write_files
 
 
 class Experiment():
@@ -301,42 +297,52 @@ class Experiment():
             ax = int(a.x)
             ay = int(a.y)
             if x == ax and y == ay:
-                print("set tag %s on antena %s" %(cluster_tag, a))
+                if self.args.verbose:
+                    print("set tag %s on antena %s" %(cluster_tag, a))
                 a.set_cluster_tag(cluster_tag)
                 return
 
     def sort_antennas_by_x_pos(self):
         self.antennas = sorted(self.antennas, key=lambda a: a.x)
 
-    def plot_antennas(self):
+    def plot_antennas_2D(self):
+        # skip plotting if --no-plot was used
+        if self.args.no_plot:
+            return
+
         import matplotlib.pyplot as pl
 
-        x = []
-        y = []
         for a in self.antennas:
             index = a.get_cluster_tag()
+            if self.args.only_relevant and not a.is_relevant():
+                continue
             pl.plot([a.x], [a.y],
-                    color=self.colors[index], marker='o')
+                        color=self.colors[index], marker='o')
         pl.show()
 
     def cluster_antennas(self):
         self.sort_antennas_by_x_pos()
-        points = np.array([a.get_position() for a in self.antennas if a.is_relevant()])
+        if self.args.only_relevant:
+            points = np.array([a.get_position() for a in self.antennas if a.is_relevant()])
+        else:
+            points = np.array([a.get_position() for a in self.antennas])
         centers = find_centers(points, self.args.num_clusters)
         clusters_dict = cluster_points(points, centers[0])
-        print ("We found the following clusters: ")
         for key in clusters_dict:
-            print ("Cluster no", key)
             for val in clusters_dict[key]:
                 self.set_clusters([val[0], val[1]], key)
-        #write_files(sys.argv[2], ant, no_clusters)
+        write_files(basename(self.files["list"]), self.antennas, len(clusters_dict))
+        
         if self.args.use_vispy:
             self.plot_vispy(True)
         else:
-            self.plot_antennas()
+            self.plot_antennas_2D()
 
 
     def plot(self):
+        # skip plotting if --no-plot was used
+        if self.args.no_plot:
+            return
         try:
             from mpl_toolkits.mplot3d import Axes3D
             import matplotlib.pyplot as plt
@@ -375,6 +381,9 @@ class Experiment():
             sys.exit(1)
 
     def plot_maya(self):
+        # skip plotting if --no-plot was used
+        if self.args.no_plot:
+            return
         try:
             from core.render import add_sphere, show
             RED = (1, 0, 0)
@@ -396,6 +405,10 @@ class Experiment():
             print("Cannot plot using MayaVI")        
 
     def plot_vispy(self, plot_cluster = False):
+            # skip plotting if --no-plot was used
+            if self.args.no_plot:
+                return
+
             from vispy import scene
             from vispy.visuals.transforms import STTransform
 

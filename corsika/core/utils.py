@@ -4,9 +4,7 @@ from itertools import combinations
 
 def generate_colors(num):
     total = (num // 3) + 1
-    print(total)
     step = 1 / total
-    print(step)
     l = []
     for i in range(total + 1):
         l.append([round(i * step, 2), 0, 0])
@@ -26,8 +24,7 @@ def write_files(filename, antennas, no_clusters):
         files.append(open(os.path.join(folder, filename), 'w+'))
 
     for a in antennas:
-        index = a.get_cluster_no()
-        print(a.toString())
+        index = a.get_cluster_tag()
         files[index].write(a.toString())
 
     for f in files:
