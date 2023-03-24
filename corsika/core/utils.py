@@ -1,6 +1,7 @@
 import os
 import random
 from itertools import combinations
+from os.path import basename
 
 def generate_colors(num):
     total = (num // 3) + 1

@@ -2,7 +2,8 @@ from core.antenna import Antenna
 from core.experiment import Experiment
 import sys
 import argparse
-from core.utils import generate_colors
+from core.utils import write_files
+from os.path import basename
 
 parser = argparse.ArgumentParser(description="CORSIKA Optimizer Headless")
 parser.add_argument('--input', action = "store", type = str, required = True,
@@ -32,11 +33,15 @@ if __name__ == '__main__':
     else:
         e.plot()
     
+    num_clusters = 0
     if args.cluster:
         if not args.num_clusters:
-            print("Warning: \"-n <value>\" is required if clustering is enabled.")
+            print("Error: \"-n <value>\" is required if clustering is enabled.")
             sys.exit(0)
+        num_clusters = args.num_clusters
         e.cluster_antennas()
+
+    write_files(basename(e.files["list"]), e.antennas, num_clusters)
     
     #e.plot_maya()
     #e.plot_vispy()
