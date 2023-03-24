@@ -23,9 +23,31 @@ def write_files(filename, antennas, no_clusters):
         os.system('mkdir ' + folder)
         files.append(open(os.path.join(folder, filename), 'w+'))
 
+    # create a special folder for antennas without tag
+    # index = -2
+    folder = "run-not-relevant"
+    os.system('rm -rf ' + folder)
+    os.system('mkdir ' + folder)
+    files.append(open(os.path.join(folder, filename), 'w+'))
+
+    # create a special folder for antennas that are important
+    # index = -1
+    folder = "run-relevant"
+    os.system('rm -rf ' + folder)
+    os.system('mkdir ' + folder)
+    files.append(open(os.path.join(folder, filename), 'w+'))
+
+
     for a in antennas:
         index = a.get_cluster_tag()
-        files[index].write(a.toString())
+
+        # if index < 0, it means the antenna is unclustered
+        # second-last file is run-not-relevant and last file is run-relevant
+        if index < 0:
+            files[-2].write(a.toString())
+        else:
+            files[-1].write(a.toString())
+            files[index].write(a.toString())
 
     for f in files:
         f.close()
