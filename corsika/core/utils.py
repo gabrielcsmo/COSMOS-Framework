@@ -43,10 +43,12 @@ def write_files(filename, antennas, no_clusters):
 
         # if index < 0, it means the antenna is unclustered
         # second-last file is run-not-relevant and last file is run-relevant
-        if index < 0:
-            files[-2].write(a.toString())
-        else:
+        if a.is_relevant():
             files[-1].write(a.toString())
+        else:
+            files[-2].write(a.toString())
+
+        if index >= 0:
             files[index].write(a.toString())
 
     for f in files:
