@@ -1,9 +1,6 @@
 import psutil as ps
-import socket
-import argparse
-import select
-import os
-import json
+import socket, select
+import argparse, os, json, struct
 from common import InfoKeys
 
 parser = argparse.ArgumentParser()
@@ -26,18 +23,18 @@ class SystemInfoService(object):
 
     @property
     def _tasks_pids(self):
-        print("ps_cmd: {}".format(self._procs_pid_cmd))
         raw = os.popen(self._procs_pid_cmd).read()
         pids = [int(pid) for pid in filter(lambda p: len(p) > 0, raw.split('\n'))]
 
-        print("pids: {}".format(str(pids)))
         return pids
     
     @property
     def _processes(self):
         for pid in self._tasks_pids:
             try:
-                yield ps.Process(pid)
+                proc = ps.Process(pid)
+                name = proc.name()
+                yield proc, name
             except ps.NoSuchProcess:
                 pass
     
@@ -48,15 +45,19 @@ class SystemInfoService(object):
 
     def _get_resources_used(self):
         per_task_usage = {}
-        for proc in self._processes:
-            name = proc.name().replace(self.task_prefix, "")
-            if name not in per_task_usage:
-                per_task_usage[name] = {InfoKeys.TASK_CPU: 0, InfoKeys.TASK_MEMORY: 0, InfoKeys.TASK_COUNT: 0, InfoKeys.TASK_MEM_INTENSIVE: False}
-            
-            cpu_usage, memory_usage = self._get_process_usage(proc)
-            per_task_usage[name][InfoKeys.TASK_CPU] += cpu_usage
-            per_task_usage[name][InfoKeys.TASK_MEMORY] += memory_usage
-            per_task_usage[name][InfoKeys.TASK_COUNT] += 1
+        for proc, full_name in self._processes:
+            name = full_name.replace(self.task_prefix, "")
+            try:
+                if name not in per_task_usage:
+                    per_task_usage[name] = {InfoKeys.TASK_CPU: 0, InfoKeys.TASK_MEMORY: 0, InfoKeys.TASK_COUNT: 0, InfoKeys.TASK_MEM_INTENSIVE: False}
+                
+                cpu_usage, memory_usage = self._get_process_usage(proc)
+                per_task_usage[name][InfoKeys.TASK_CPU] += cpu_usage
+                per_task_usage[name][InfoKeys.TASK_MEMORY] += memory_usage
+                per_task_usage[name][InfoKeys.TASK_COUNT] += 1
+            except ps.NoSuchProcess:
+                if name in per_task_usage:
+                    del per_task_usage[name]
 
         for task_name in per_task_usage.keys():
             current_entry = per_task_usage[task_name]
@@ -76,7 +77,7 @@ class SystemInfoService(object):
         return {**system_load, InfoKeys.PER_TASK_USAGE: per_task_usage}
 
 def pack_message(message):
-    return bytes([len(message)]) + message.encode()
+    return struct.pack("I", len(message)) + message.encode()
 
 def send_message(message, server):
     msg_bytes = pack_message(json.dumps(message))

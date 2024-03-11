@@ -25,5 +25,6 @@
   "rootfs" : "~/COSMOS-Framework/task_examples/pi_computing",
   "workspace" : "~/workspace",
   "propagate_workspace" : "True",
-  "timeout" : 10
+  "timeout" : 10,
+  "info_server_port" : 28972
 }

@@ -1,11 +1,8 @@
-import logging
-import sys
-import os
-import subprocess
+import logging, json, sys, os, subprocess, threading
 from multiprocessing import Process
-import threading
 import lib.info_server as info_server
 from broker.task import Task
+from lib.custom_loggers import perf_logger
 
 def exec_func(**kwargs):
     logging.info("Executing task: " + str(kwargs))
@@ -84,7 +81,7 @@ class Host():
                          '--report_timeout {} ' \
                          .format(self.python_exec,
                                  info_server.INFO_SERVICE_HOSTNAME,
-                                 info_server.INFO_SERVICE_PORT,
+                                 info_server.SystemInfoServer.INFO_SERVICE_PORT,
                                  self.hostname,
                                  Task.TASK_PREFIX,
                                  self.usage_report_timeout)
@@ -159,6 +156,7 @@ class Host():
         else:
             logging.error("Unknown host type: {}".format(self.type))
             sys.exit(1)
+        task.mark_start_time()
 
     def send_task(self, task):
         """
@@ -175,7 +173,7 @@ class Host():
         self.exec_task(task)
 
         self.running_tasks[task.get_id()] = task
-        logging.info('\tTask: {0} is running now running\n'.format(task.get_id()))
+        logging.info('\tTask: {0} is now running\n'.format(task.get_id()))
 
     def tasks_join(self):
         for task in self.running_tasks:
@@ -187,8 +185,9 @@ class Host():
         This should be called when a process joins
         '''
         self.used_cpus -= 1
-        self.load -= task['length']
-        #self.running_tasks.remove(task)
+        self.load -= task.length
+        del self.running_tasks[task.get_id()]
+        # self.running_tasks.remove(task)
 
     def to_string(self):
         res = ""
@@ -205,3 +204,6 @@ class Host():
 		"""
         ret = float(self.load + task.get_length()) / float(self.processing_power)
         return ret
+
+    def is_full(self):
+        return self.used_cpus >= self.cpus
