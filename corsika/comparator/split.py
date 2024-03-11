@@ -3,9 +3,9 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as pl
-from corsika.comparator.lib.utils import read_file, write_files
+from utils import read_file, write_files
 observers = []
-from Lloyd_kmeans import find_centers, cluster_points
+from corsika.core.lloyd_kmeans import find_centers, cluster_points
 colors = ['r', 'b', 'g', 'm', 'c', 'y', 'k']
 shapes = ['D', 'p', '*', 'H', '+', 's', 'x']
 avail_colors = len(colors)
@@ -38,17 +38,17 @@ def plot_antennas(antennas):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        print "Usage: split.py <filename> <res_filename>"
+        print("Usage: split.py <filename> <res_filename>")
         sys.exit(1)
     observers = read_file(sys.argv[1])
     ant = sort_antennas(observers)
     points = np.array([a.getPos() for a in ant])
-    centers = find_centers(points, 4)
+    centers = find_centers(points, 12)
     clusters_dict = cluster_points(points, centers[0])
     no_clusters = len(clusters_dict)
-    print "We found the following clusters: "
+    print ("We found the following clusters: ")
     for key in clusters_dict:
-        print "Cluster no", key
+        print ("Cluster no", key)
         for val in clusters_dict[key]:
             set_clusters([val[0], val[1]], key, ant)
     write_files(sys.argv[2], ant, no_clusters)

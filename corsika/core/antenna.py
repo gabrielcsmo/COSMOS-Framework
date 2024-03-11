@@ -16,7 +16,7 @@ class Antenna():
         self.name = name
         self.cluster_no = -1
 
-    def get_possition(self):
+    def get_position(self):
         return [self.x, self.y, self.z]
 
     def mark_as_relevant(self):
@@ -25,10 +25,10 @@ class Antenna():
     def is_relevant(self):
         return self.relevant
 
-    def set_cluster(self, cno):
+    def set_cluster_tag(self, cno):
         self.cluster_no = cno
 
-    def get_cluster_no(self):
+    def get_cluster_tag(self):
         return self.cluster_no
 
     def distance_to(self, ant):
@@ -51,4 +51,9 @@ class Antenna():
 
     def __str__(self):
         resstr = "%9s : (%8.1f, %8.1f, %8.1f) - %s" % (self.name, self.x, self.y, self.z, self.relevant)
+        return resstr
+
+    def toString(self):
+        resstr = 'AntennaPosition = ' + str(self.x) +\
+                 ' ' + str(self.y) + ' ' + str(self.z) + ' ' + self.name + '\n'
         return resstr

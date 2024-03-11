@@ -45,7 +45,7 @@ def read_file(filename):
 
 def write_files(filename, antennas, no_clusters):
     files = []
-    for i in xrange(no_clusters):
+    for i in range(no_clusters):
         folder = 'run' + str(i)
         os.system('rm -rf ' + folder)
         os.system('mkdir ' + folder)
@@ -53,7 +53,7 @@ def write_files(filename, antennas, no_clusters):
 
     for a in antennas:
         index = a.get_cluster_no()
-        print a.toString()
+        print(a.toString())
         files[index].write(a.toString())
 
     for f in files:

@@ -1,10 +1,13 @@
 from os import listdir
-from os.path import isfile, join, abspath, expanduser
+from os.path import isfile, join, abspath, expanduser, basename
 import sys
 from core.antenna import Antenna
 import re
 import numpy as np
 import random
+from core.lloyd_kmeans import find_centers, cluster_points
+from core.utils import generate_colors, write_files
+
 
 class Experiment():
 
@@ -34,6 +37,17 @@ class Experiment():
         self.__set_par_coordinates()
         self.__set_direction_vector()
         self.__set_direction_points()
+        self.xmin = 100000000.0
+        self.xmax = -100000000.0
+        self.ymin = 100000000.0
+        self.ymax = -100000000.0
+        self.zmin = 100000000.0
+        self.zmax = -100000000.0
+
+        if args.num_clusters:
+            self.colors = generate_colors(args.num_clusters)
+        else:
+            self.colors = generate_colors(10)
 
     def find_input_files(self):
         self.folder = abspath(self.folder)
@@ -196,6 +210,24 @@ class Experiment():
         self.max_distance = round(self.reas_dict_params["DistanceOfShowerMaximum"] / 100 , 1)
         self.par_coord = [x, y, z]
 
+    def get_sim_box_limits(self):
+        for antenna in self.antennas:
+                [x, y, z] = antenna.get_position()
+                if x < self.xmin:
+                    self.xmin = x
+                elif x > self.xmax:
+                    self.xmax = x
+
+                if y < self.ymin:
+                    self.ymin = y
+                elif y > self.ymax:
+                    self.ymax = y
+
+                if z < self.zmin:
+                    self.zmin = z
+                elif z > self.zmax:
+                    self.zmax = z
+
     def mark_relevant_antennas(self):
         """initial radius"""
         a1 = random.choice(self.antennas)
@@ -211,7 +243,7 @@ class Experiment():
             if a1 == a2:
                 continue
             r = a1.distance_to(a2)
-            #print a1.get_possition(), a2.get_possition(), r
+            #print a1.get_position(), a2.get_position(), r
             if r < r_min and r > 1.0:
                 r_min = r
             if r > r_max:
@@ -258,8 +290,59 @@ class Experiment():
             print(f"\tstart position {self.par_dir_points[0]}")
             print(f"\tend position   {self.par_dir_points[-1]}")
 
+    def set_clusters(self, position, cluster_tag):
+        x = int(position[0])
+        y = int(position[1])
+        for a in self.antennas:
+            ax = int(a.x)
+            ay = int(a.y)
+            if x == ax and y == ay:
+                if self.args.verbose:
+                    print("set tag %s on antena %s" %(cluster_tag, a))
+                a.set_cluster_tag(cluster_tag)
+                return
+
+    def sort_antennas_by_x_pos(self):
+        self.antennas = sorted(self.antennas, key=lambda a: a.x)
+
+    def plot_antennas_2D(self):
+        # skip plotting if --no-plot was used
+        if self.args.no_plot:
+            return
+
+        import matplotlib.pyplot as pl
+
+        for a in self.antennas:
+            index = a.get_cluster_tag()
+            if self.args.only_relevant and not a.is_relevant():
+                continue
+            pl.plot([a.x], [a.y],
+                        color=self.colors[index], marker='o')
+        pl.show()
+
+    def cluster_antennas(self):
+        self.sort_antennas_by_x_pos()
+        if self.args.only_relevant:
+            points = np.array([a.get_position() for a in self.antennas if a.is_relevant()])
+        else:
+            points = np.array([a.get_position() for a in self.antennas])
+        centers = find_centers(points, self.args.num_clusters)
+        clusters_dict = cluster_points(points, centers[0])
+        for key in clusters_dict:
+            for val in clusters_dict[key]:
+                self.set_clusters([val[0], val[1]], key)
+        write_files(basename(self.files["list"]), self.antennas, len(clusters_dict))
+        
+        if self.args.use_vispy:
+            self.plot_vispy(True)
+        else:
+            self.plot_antennas_2D()
+
 
     def plot(self):
+        # skip plotting if --no-plot was used
+        if self.args.no_plot:
+            return
         try:
             from mpl_toolkits.mplot3d import Axes3D
             import matplotlib.pyplot as plt
@@ -269,11 +352,11 @@ class Experiment():
             if(self.verbose):
                 print("Antennas list:")
             for antenna in self.antennas:
-                [x, y, z] = antenna.get_possition()
-                colour = 'r'
+                [x, y, z] = antenna.get_position()
+                c = [0.5, 0, 0]
                 if antenna.is_relevant():
-                    colour = 'g'
-                ax.scatter(x, y, z, c=colour, marker='o')
+                    c = [0, 0.7, 0]
+                ax.scatter(x, y, z, color=c, marker='o')
 
                 if (self.verbose):
                     print("\t" + str(antenna))
@@ -296,3 +379,66 @@ class Experiment():
             print ("Failed to plot Antennas")
             print (e)
             sys.exit(1)
+
+    def plot_maya(self):
+        # skip plotting if --no-plot was used
+        if self.args.no_plot:
+            return
+        try:
+            from core.render import add_sphere, show
+            RED = (1, 0, 0)
+            GREEN = (0, 1, 0)
+            for antenna in self.antennas:
+                [x, y, z] = antenna.get_position()
+                colour = RED
+                if antenna.is_relevant():
+                    colour = GREEN
+                if (self.verbose):
+                    print("\t" + str(antenna))
+
+                add_sphere(x, y , z ,colour)
+            for x,y,z in self.par_dir_points:
+                add_sphere(x, y , z , (0,0,1))
+
+            show()
+        except:
+            print("Cannot plot using MayaVI")        
+
+    def plot_vispy(self, plot_cluster = False):
+            # skip plotting if --no-plot was used
+            if self.args.no_plot:
+                return
+
+            from vispy import scene
+            from vispy.visuals.transforms import STTransform
+
+            canvas = scene.SceneCanvas(keys='interactive', bgcolor='white',
+                                       size=(800, 600), show=True)
+            view = canvas.central_widget.add_view()
+            view.camera = 'arcball'
+
+            for antenna in self.antennas:
+                if self.args.only_relevant and not antenna.is_relevant():
+                    continue
+                pos=antenna.get_position()
+                c = 'red'
+                if plot_cluster:
+                    index = antenna.get_cluster_tag()
+                    c = self.colors[index]
+                elif antenna.is_relevant():
+                    c = 'green'
+                _s = scene.visuals.Sphere(color=c, radius=35, method='latitude', parent=view.scene)
+                _s.transform = STTransform(translate=pos)
+
+            for pos in self.par_dir_points:
+                
+                _s = scene.visuals.Sphere(color ='blue',
+                                     radius=10, method='latitude', parent=view.scene)
+                _s.transform = STTransform(translate=pos)
+
+            self.get_sim_box_limits()
+
+            view.camera.set_range(x=[self.xmin, self.xmax],
+                                  y=[self.ymin, self.ymax],
+                                  z = [self.zmin, self.zmax])
+            canvas.app.run()
